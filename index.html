@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Deas Virtual Library</title>
+    <style>
+        :root {
+            --primary-dark: #1a1a2e;
+            --secondary-dark: #2a2a3e;
+            --primary-brown: #8b7355;
+            --primary-brown-hover: #6d5a43;
+            --accent-gold: #d4af37;
+            --text-light: #f0f0f0;
+            --text-muted: #c0c0c0;
+            --disabled-bg: #666;
+            --font-main: 'Georgia', serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: var(--primary-dark);
+            font-family: var(--font-main);
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: var(--text-light);
+            background: rgba(26, 26, 46, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 100;
+            border: 2px solid var(--primary-brown);
+            max-width: 300px;
+        }
+
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: var(--accent-gold);
+            font-size: 18px;
+        }
+
+        #info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        #vrButton {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: var(--primary-brown);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 100;
+            transition: background 0.3s;
+        }
+
+        #vrButton:hover {
+            background: var(--primary-brown-hover);
+        }
+
+        #vrButton:disabled {
+            background: var(--disabled-bg);
+            cursor: not-allowed;
+        }
+
+        canvas {
+            display: block;
+            cursor: pointer;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+        }
+
+        .modal-content {
+            background-color: var(--secondary-dark);
+            margin: 5% auto;
+            padding: 20px;
+            border: 2px solid var(--primary-brown);
+            border-radius: 10px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: var(--text-light);
+        }
+
+        .close {
+            color: var(--accent-gold);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #fff;
+        }
+
+        #bookDetails {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        #modalBookCover {
+            width: 200px;
+            height: auto;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        #modalBookInfo {
+            flex: 1;
+        }
+
+        #modalBookInfo h2 {
+            color: var(--accent-gold);
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+
+        #modalBookInfo h3 {
+            color: var(--text-muted);
+            margin: 0 0 15px 0;
+            font-style: italic;
+        }
+
+        #modalBookInfo p {
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+
+        #modalSummary {
+            margin-top: 15px;
+            line-height: 1.6;
+            text-align: justify;
+        }
+
+        @media (max-width: 600px) {
+            #bookDetails {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            #modalBookCover {
+                width: 150px;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 2% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h3>Dr. Deas Virtual Library</h3>
+        <p>Click "Enter VR" to experience in your Oculus headset</p>
+        <p>Desktop: WASD to move, R to reset view, Click canvas to lock mouse, Mouse to look, Click books to view details</p>
+        <p>Books loaded: <span id="bookCount">0</span></p>
+    </div>
+    <button id="vrButton">Enter VR</button>
+
+    <div id="bookModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="bookDetails">
+                <img id="modalBookCover" src="" alt="Book Cover">
+                <div id="modalBookInfo">
+                    <h2 id="modalTitle"></h2>
+                    <h3 id="modalAuthor"></h3>
+                    <p><strong>Category:</strong> <span id="modalCategory"></span></p>
+                    <p><strong>Status:</strong> <span id="modalStatus"></span></p>
+                    <p><strong>Ownership:</strong> <span id="modalOwnership"></span></p>
+                    <p><strong>Date Completed:</strong> <span id="modalDate"></span></p>
+                    <div id="modalSummary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // =============================================================================
+        // DATA
+        // =============================================================================
+
+        const books = [
+            // NOTE: This sample has 3 books. You can paste your full book list here.
+            {
+                "number": 1,
+                "title": "Begin Again: James Baldwin's America and Its Urgent Lessons for Our Own",
+                "author": "Eddie S. Glaude, Jr.",
+                "category": "Biography",
+                "ownership": "Digital",
+                "status": "Finished",
+                "dateCompleted": "2020-10-03",
+                "customCoverUrl": "https://raw.githubusercontent.com/DrDeas/DrDeasBookLog/refs/heads/main/images/Book_00001.jpg",
+                "id": 1,
+                "summary": "This book offers a powerful examination of American history and identity through the lens of James Baldwin's work. It delves into Baldwin's observations on race, democracy, and the ongoing struggle for justice in the United States, drawing parallels between his era and contemporary challenges. The author argues that Baldwin's insights remain urgently relevant, urging readers to confront uncomfortable truths about the nation's past and present to forge a more equitable future."
+            },
+            {
+                "number": 2,
+                "title": "David and Goliath: Underdogs, Misfits, and the Art of Battling Giants",
+                "author": "Malcolm Gladwell",
+                "category": "Social Science(s)",
+                "ownership": "Physical",
+                "status": "Finished",
+                "dateCompleted": "2020-10-08",
+                "customCoverUrl": "https://raw.githubusercontent.com/DrDeas/DrDeasBookLog/refs/heads/main/images/Book_00002.jpg",
+                "id": 2,
+                "summary": "This book explores the dynamics of encounters between the powerful and the seemingly weak, challenging conventional wisdom about advantages and disadvantages. It argues that what appears to be a weakness can often be a source of unexpected strength, and that seemingly insurmountable odds can be overcome through unconventional strategies and a refusal to conform to traditional expectations. Through a series of compelling stories and examples, the author illustrates how underdogs can defy expectations and achieve remarkable success by leveraging their unique circumstances and embracing alternative approaches."
+            },
+            {
+                "number": 3,
+                "title": "Talking to Strangers: What We Should Know about the People We Don't Know",
+                "author": "Malcolm Gladwell",
+                "category": "Social Science(s)",
+                "ownership": "Digital",
+                "status": "Finished",
+                "dateCompleted": "2020-10-13",
+                "customCoverUrl": "https://raw.githubusercontent.com/DrDeas/DrDeasBookLog/refs/heads/main/images/Book_00003.jpg",
+                "id": 3,
+                "summary": "This book explores the misunderstandings and miscommunications that arise when people interact with strangers. It delves into the various tools and strategies individuals use to make sense of those they don't know, and how these methods can often lead to incorrect assumptions and catastrophic errors. Through a series of compelling stories and case studies, the author examines why trusting strangers can be both essential and dangerous, highlighting the complexities of human interaction and the importance of re-evaluating our default approaches to engaging with the unknown."
+            }
+        ];
+
+
+        // =============================================================================
+        // CONFIGURATION & CONSTANTS
+        // =============================================================================
+        const LIBRARY_WIDTH = 40;
+        const LIBRARY_DEPTH = 40;
+        const LIBRARY_HEIGHT = 10;
+        const BOOKS_PER_SHELF = 8;
+        const SHELVES_PER_BOOKCASE = 5;
+        const BOOKS_PER_BOOKCASE = BOOKS_PER_SHELF * SHELVES_PER_BOOKCASE;
+        const BOOKCASE_WIDTH = 10;
+        const BOOKCASE_HEIGHT = 8.2;
+        const BOOKCASE_SPACING = 2;
+        const SHELF_THICKNESS = 0.2;
+        const SHELF_DEPTH = 1.5;
+        const SHELF_SPACING_Y = 1.6;
+        const SHELF_BASE_Y = 1.0;
+        const SUPPORT_WIDTH = 0.3;
+        const BOOK_WIDTH = 0.8;
+        const BOOK_HEIGHT = 1.2;
+        const BOOK_THICKNESS = 0.2;
+        const BOOK_SPACING_X = 1.0;
+
+        // =============================================================================
+        // GLOBAL VARIABLES
+        // =============================================================================
+        let scene, camera, renderer, vrButton;
+        let isVREnabled = false;
+        let inputController, playerController;
+
+        const bookMeshes = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let modal, closeBtn;
+
+        // =============================================================================
+        // INITIALIZATION & SETUP
+        // =============================================================================
+        function init() {
+            modal = document.getElementById('bookModal');
+            closeBtn = document.querySelector('.close');
+
+            closeBtn.onclick = () => { modal.style.display = 'none'; };
+            window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; };
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f0f23);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1.6, 8);
+            
+            // Store initial state for resetting
+            camera.userData.initialPosition = camera.position.clone();
+            camera.userData.initialRotation = camera.rotation.clone();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.xr.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild(renderer.domElement);
+            
+            inputController = new InputController();
+            inputController.connect();
+            playerController = new PlayerController(camera, renderer.domElement);
+
+            createLighting();
+            createLibraryEnvironment();
+            createBookShelves();
+            createLibraryFurniture();
+            setupMouseInteraction();
+            setupVR();
+
+            document.getElementById('bookCount').textContent = books.length;
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function setupVR() {
+            vrButton = document.getElementById('vrButton');
+            if ('xr' in navigator) {
+                navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                    if (supported) {
+                        vrButton.addEventListener('click', () => {
+                            if (isVREnabled) {
+                                renderer.xr.getSession().end();
+                            } else {
+                                navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] })
+                                    .then((session) => {
+                                        renderer.xr.setSession(session);
+                                        isVREnabled = true;
+                                        vrButton.textContent = 'Exit VR';
+                                        session.addEventListener('end', () => {
+                                            isVREnabled = false;
+                                            vrButton.textContent = 'Enter VR';
+                                        });
+                                    }).catch((error) => console.error('VR session failed:', error));
+                            }
+                        });
+                    } else {
+                        vrButton.textContent = 'VR Not Supported';
+                        vrButton.disabled = true;
+                    }
+                });
+            } else {
+                vrButton.textContent = 'VR Not Supported';
+                vrButton.disabled = true;
+            }
+        }
+
+
+        // =============================================================================
+        // CONTROLS & INTERACTIONS
+        // =============================================================================
+
+        /**
+         * Manages raw keyboard and mouse input and translates it into abstract actions.
+         */
+        class InputController {
+            constructor() {
+                this.keys = new Set();
+                this.actions = {
+                    moveForward: 0,
+                    moveStrafe: 0,
+                    moveVertical: 0,
+                    lookHorizontal: 0,
+                    reset: false
+                };
+            }
+
+            connect() {
+                document.addEventListener('keydown', (e) => this.onKeyChange(e, true));
+                document.addEventListener('keyup', (e) => this.onKeyChange(e, false));
+                window.addEventListener('blur', () => this.keys.clear());
+            }
+
+            onKeyChange(event, isPressed) {
+                if (isPressed) {
+                    this.keys.add(event.code);
+                } else {
+                    this.keys.delete(event.code);
+                }
+
+                // Trigger reset on the 'R' key down event
+                if (event.code === 'KeyR' && isPressed) {
+                    this.actions.reset = true;
+                }
+                
+                // Prevent browser shortcuts
+                if ((event.metaKey || event.ctrlKey) && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+                    event.preventDefault();
+                }
+            }
+            
+            update() {
+                const isModActive = this.keys.has('MetaLeft') || this.keys.has('MetaRight') || this.keys.has('ControlLeft') || this.keys.has('ControlRight');
+                
+                const fwd = (this.keys.has('ArrowUp') || this.keys.has('KeyW')) && !isModActive;
+                const bwd = (this.keys.has('ArrowDown') || this.keys.has('KeyS')) && !isModActive;
+                const left = (this.keys.has('ArrowLeft') || this.keys.has('KeyA')) && !isModActive;
+                const right = (this.keys.has('ArrowRight') || this.keys.has('KeyD')) && !isModActive;
+                
+                const up = this.keys.has('ArrowUp') && isModActive;
+                const down = this.keys.has('ArrowDown') && isModActive;
+                const rotLeft = this.keys.has('ArrowLeft') && isModActive;
+                const rotRight = this.keys.has('ArrowRight') && isModActive;
+
+                this.actions.moveForward = Number(bwd) - Number(fwd);
+                this.actions.moveStrafe = Number(right) - Number(left);
+                this.actions.moveVertical = Number(up) - Number(down);
+                this.actions.lookHorizontal = Number(rotRight) - Number(rotLeft);
+            }
+        }
+
+        /**
+         * Manages camera physics and movement based on actions from the InputController.
+         */
+        class PlayerController {
+            constructor(camera, domElement) {
+                this.camera = camera;
+                this.domElement = domElement;
+
+                this.linearVelocity = new THREE.Vector3();
+                this.angularVelocity = new THREE.Vector3();
+                
+                this.acceleration = 40.0;
+                this.rotationSpeed = 3.5;
+                this.friction = 10.0;
+
+                this.connect();
+            }
+            
+            resetView() {
+                this.camera.position.copy(this.camera.userData.initialPosition);
+                this.camera.rotation.copy(this.camera.userData.initialRotation);
+                
+                // Stop all movement immediately
+                this.linearVelocity.set(0, 0, 0);
+                this.angularVelocity.set(0, 0, 0);
+            }
+
+            connect() {
+                this.domElement.addEventListener('click', () => this.domElement.requestPointerLock());
+                document.addEventListener('pointerlockchange', () => {
+                    if (document.pointerLockElement === this.domElement) {
+                        document.addEventListener('mousemove', this.onMouseMove, false);
+                    } else {
+                        document.removeEventListener('mousemove', this.onMouseMove, false);
+                    }
+                });
+            }
+
+            onMouseMove = (event) => {
+                this.camera.rotation.y -= event.movementX * 0.002;
+                this.camera.rotation.x -= event.movementY * 0.002;
+                this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
+            }
+
+            update(delta, actions) {
+                this.linearVelocity.x -= this.linearVelocity.x * this.friction * delta;
+                this.linearVelocity.z -= this.linearVelocity.z * this.friction * delta;
+                this.linearVelocity.y -= this.linearVelocity.y * this.friction * delta;
+                this.angularVelocity.y -= this.angularVelocity.y * this.friction * delta;
+
+                const direction = new THREE.Vector3(actions.moveStrafe, actions.moveVertical, actions.moveForward);
+                direction.normalize();
+
+                if (direction.length() > 0) {
+                   this.linearVelocity.x += direction.x * this.acceleration * delta;
+                   this.linearVelocity.z += direction.z * this.acceleration * delta;
+                   this.linearVelocity.y += direction.y * this.acceleration * delta;
+                }
+
+                if (actions.lookHorizontal !== 0) {
+                    this.angularVelocity.y += actions.lookHorizontal * this.rotationSpeed * delta;
+                }
+
+                this.camera.translateX(this.linearVelocity.x * delta);
+                this.camera.translateZ(this.linearVelocity.z * delta);
+                this.camera.position.y += this.linearVelocity.y * delta;
+                this.camera.rotation.y -= this.angularVelocity.y * delta;
+                
+                this.camera.position.x = Math.max(-LIBRARY_WIDTH / 2 + 4, Math.min(LIBRARY_WIDTH / 2 - 4, this.camera.position.x));
+                this.camera.position.z = Math.max(-LIBRARY_DEPTH / 2 + 4, Math.min(LIBRARY_DEPTH / 2 - 4, this.camera.position.z));
+                this.camera.position.y = Math.max(0.8, Math.min(8.0, this.camera.position.y));
+            }
+        }
+
+        function setupMouseInteraction() {
+            renderer.domElement.addEventListener('click', onMouseClick, false);
+        }
+
+        function onMouseClick(event) {
+            if (document.pointerLockElement === renderer.domElement) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(bookMeshes, true);
+
+            if (intersects.length > 0) {
+                const clickedBook = intersects[0].object.userData.book;
+                if (clickedBook) {
+                    showBookDetails(clickedBook);
+                }
+            }
+        }
+
+        function showBookDetails(book) {
+            document.getElementById('modalTitle').textContent = book.title;
+            document.getElementById('modalAuthor').textContent = book.author;
+            document.getElementById('modalCategory').textContent = book.category;
+            document.getElementById('modalStatus').textContent = book.status;
+            document.getElementById('modalOwnership').textContent = book.ownership;
+            document.getElementById('modalDate').textContent = book.dateCompleted || 'Not completed';
+            document.getElementById('modalSummary').textContent = book.summary;
+            document.getElementById('modalBookCover').src = book.customCoverUrl;
+            modal.style.display = 'block';
+        }
+
+        // =============================================================================
+        // SCENE & ENVIRONMENT CREATION
+        // =============================================================================
+        function createLighting() {
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443322, 0.6);
+            scene.add(hemisphereLight);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -25;
+            directionalLight.shadow.camera.right = 25;
+            directionalLight.shadow.camera.top = 25;
+            directionalLight.shadow.camera.bottom = -25;
+            scene.add(directionalLight);
+        }
+
+        function createLibraryEnvironment() {
+            const floorGeometry = new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_DEPTH);
+            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x3d2914 });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a3e });
+
+            const backWall = new THREE.Mesh(new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_HEIGHT), wallMaterial);
+            backWall.position.set(0, LIBRARY_HEIGHT / 2, -LIBRARY_DEPTH / 2);
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+
+            const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(LIBRARY_DEPTH, LIBRARY_HEIGHT), wallMaterial);
+            leftWall.position.set(-LIBRARY_WIDTH / 2, LIBRARY_HEIGHT / 2, 0);
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
+
+            const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(LIBRARY_DEPTH, LIBRARY_HEIGHT), wallMaterial);
+            rightWall.position.set(LIBRARY_WIDTH / 2, LIBRARY_HEIGHT / 2, 0);
+            rightWall.rotation.y = -Math.PI / 2;
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
+        }
+
+        function createBookShelves() {
+            let bookIndex = 0;
+            const totalBookcasesNeeded = Math.ceil(books.length / BOOKS_PER_BOOKCASE);
+
+            const bookcaseLayout = [
+                { pos: new THREE.Vector3(-(BOOKCASE_WIDTH + BOOKCASE_SPACING), 0, -18), rotY: 0 },
+                { pos: new THREE.Vector3(0, 0, -18), rotY: 0 },
+                { pos: new THREE.Vector3((BOOKCASE_WIDTH + BOOKCASE_SPACING), 0, -18), rotY: 0 },
+                { pos: new THREE.Vector3(-18, 0, -(BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: Math.PI / 2 },
+                { pos: new THREE.Vector3(-18, 0, 0), rotY: Math.PI / 2 },
+                { pos: new THREE.Vector3(-18, 0, (BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: Math.PI / 2 },
+                { pos: new THREE.Vector3(18, 0, -(BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: -Math.PI / 2 },
+                { pos: new THREE.Vector3(18, 0, 0), rotY: -Math.PI / 2 },
+                { pos: new THREE.Vector3(18, 0, (BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: -Math.PI / 2 },
+            ];
+            
+            for (let i = 0; i < totalBookcasesNeeded && i < bookcaseLayout.length; i++) {
+                const slot = bookcaseLayout[i];
+                createSingleBookcase(slot.pos, slot.rotY, bookIndex);
+                bookIndex += Math.min(BOOKS_PER_BOOKCASE, books.length - bookIndex);
+            }
+        }
+
+        function createSingleBookcase(position, rotation, startBookIndex) {
+            const bookcaseGroup = new THREE.Group();
+            bookcaseGroup.position.copy(position);
+            bookcaseGroup.rotation.y = rotation;
+            const shelfMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x5d4d37 });
+            const supportGeometry = new THREE.BoxGeometry(SUPPORT_WIDTH, BOOKCASE_HEIGHT, SHELF_DEPTH);
+            const leftSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+            leftSupport.position.set(-BOOKCASE_WIDTH / 2 + SUPPORT_WIDTH / 2, BOOKCASE_HEIGHT / 2, 0);
+            leftSupport.castShadow = true;
+            bookcaseGroup.add(leftSupport);
+            const rightSupport = new THREE.Mesh(supportGeometry, supportMaterial);
+            rightSupport.position.set(BOOKCASE_WIDTH / 2 - SUPPORT_WIDTH / 2, BOOKCASE_HEIGHT / 2, 0);
+            rightSupport.castShadow = true;
+            bookcaseGroup.add(rightSupport);
+            for (let shelfLevel = 0; shelfLevel < SHELVES_PER_BOOKCASE; shelfLevel++) {
+                const yPosition = SHELF_BASE_Y + shelfLevel * SHELF_SPACING_Y;
+                const shelfGeometry = new THREE.BoxGeometry(BOOKCASE_WIDTH, SHELF_THICKNESS, SHELF_DEPTH);
+                const shelf = new THREE.Mesh(shelfGeometry, shelfMaterial);
+                shelf.position.set(0, yPosition, 0);
+                shelf.castShadow = true;
+                bookcaseGroup.add(shelf);
+                for (let bookPos = 0; bookPos < BOOKS_PER_SHELF; bookPos++) {
+                    const currentBookIndex = startBookIndex + shelfLevel * BOOKS_PER_SHELF + bookPos;
+                    if (currentBookIndex >= books.length) break;
+                    const book = books[currentBookIndex];
+                    const bookX = -BOOKCASE_WIDTH / 2 + BOOK_SPACING_X + (bookPos * BOOK_SPACING_X);
+                    const bookY = yPosition + (BOOK_HEIGHT / 2) + (SHELF_THICKNESS / 2);
+                    const bookZ = 0;
+                    createBookCover(book, bookX, bookY, bookZ, bookcaseGroup);
+                }
+            }
+            scene.add(bookcaseGroup);
+        }
+
+        function createLibraryFurniture() {
+            const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x3d2914, roughness: 0.8, metalness: 0.2 });
+            const plantPotMaterial = new THREE.MeshStandardMaterial({ color: 0x964B00, roughness: 0.9 });
+            const plantLeavesMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 1.0 });
+
+            const createPottedPlant = (x, z) => {
+                const plantGroup = new THREE.Group();
+                const potGeometry = new THREE.CylinderGeometry(0.5, 0.4, 1, 16);
+                const pot = new THREE.Mesh(potGeometry, plantPotMaterial);
+                pot.castShadow = true;
+                plantGroup.add(pot);
+                const leavesGeometry = new THREE.IcosahedronGeometry(0.8, 1);
+                const leaves = new THREE.Mesh(leavesGeometry, plantLeavesMaterial);
+                leaves.position.y = 1.0;
+                leaves.castShadow = true;
+                plantGroup.add(leaves);
+                plantGroup.position.set(x, 0.5, z);
+                scene.add(plantGroup);
+            };
+
+            const createTableAndChairs = (x, z) => {
+                const tableGroup = new THREE.Group();
+                const tableTopGeo = new THREE.CylinderGeometry(2, 2, 0.1, 32);
+                const tableTop = new THREE.Mesh(tableTopGeo, darkWoodMaterial);
+                tableTop.position.y = 1.0;
+                tableTop.castShadow = true;
+                tableTop.receiveShadow = true;
+                tableGroup.add(tableTop);
+                const tableBaseGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.0, 16);
+                const tableBase = new THREE.Mesh(tableBaseGeo, darkWoodMaterial);
+                tableBase.position.y = 0.5;
+                tableBase.castShadow = true;
+                tableGroup.add(tableBase);
+                const lampBaseGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 16);
+                const lampBase = new THREE.Mesh(lampBaseGeo, darkWoodMaterial);
+                lampBase.position.y = 1.05;
+                tableGroup.add(lampBase);
+                const lampStemGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 16);
+                const lampStem = new THREE.Mesh(lampStemGeo, darkWoodMaterial);
+                lampStem.position.y = 1.3;
+                tableGroup.add(lampStem);
+                const lampShadeGeo = new THREE.CylinderGeometry(0.1, 0.3, 0.3, 16, 1, true);
+                const lampShadeMat = new THREE.MeshStandardMaterial({ color: 0xfff8e1, side: THREE.DoubleSide });
+                const lampShade = new THREE.Mesh(lampShadeGeo, lampShadeMat);
+                lampShade.position.y = 1.6;
+                tableGroup.add(lampShade);
+                const lampLight = new THREE.PointLight(0xffd700, 1.2, 8);
+                lampLight.position.set(0, 1.7, 0);
+                lampLight.castShadow = true;
+                tableGroup.add(lampLight);
+                const chairSeatGeo = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+                const chairBackGeo = new THREE.BoxGeometry(0.5, 0.6, 0.05);
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    const chair = new THREE.Group();
+                    const seat = new THREE.Mesh(chairSeatGeo, darkWoodMaterial);
+                    seat.position.y = 0.5;
+                    seat.castShadow = true;
+                    chair.add(seat);
+                    const back = new THREE.Mesh(chairBackGeo, darkWoodMaterial);
+                    back.position.y = 0.8;
+                    back.position.z = -0.225;
+                    back.castShadow = true;
+                    chair.add(back);
+                    chair.position.set(Math.cos(angle) * 1.5, 0, Math.sin(angle) * 1.5);
+                    chair.lookAt(tableGroup.position);
+                    tableGroup.add(chair);
+                }
+                tableGroup.position.set(x, 0, z);
+                scene.add(tableGroup);
+            };
+
+            createTableAndChairs(-5, 0);
+            createTableAndChairs(5, 0);
+            
+            const gapCenterOffset = (BOOKCASE_WIDTH + BOOKCASE_SPACING) / 2;
+            const plantOffsetFromWall = SHELF_DEPTH / 2 + 0.5;
+            createPottedPlant(-gapCenterOffset, -18 + plantOffsetFromWall);
+            createPottedPlant(gapCenterOffset, -18 + plantOffsetFromWall);
+            createPottedPlant(-18 + plantOffsetFromWall, -gapCenterOffset);
+            createPottedPlant(-18 + plantOffsetFromWall, gapCenterOffset);
+            createPottedPlant(18 - plantOffsetFromWall, -gapCenterOffset);
+            createPottedPlant(18 - plantOffsetFromWall, gapCenterOffset);
+        }
+
+        function createBookCover(book, x, y, z, parentGroup) {
+            const bookGeometry = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, BOOK_THICKNESS);
+            const loader = new THREE.TextureLoader();
+            const defaultMaterial = new THREE.MeshPhongMaterial({ color: 0x5d4d37 });
+            const bookMesh = new THREE.Mesh(bookGeometry, defaultMaterial);
+            bookMesh.position.set(x, y, z);
+            bookMesh.castShadow = true;
+            bookMesh.userData = { book };
+            loader.load(book.customCoverUrl, (texture) => {
+                const materials = [
+                    new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                    new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                    new THREE.MeshPhongMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
+                ];
+                bookMesh.material = materials;
+            }, undefined, () => createFallbackCover(bookMesh, book));
+            parentGroup.add(bookMesh);
+            bookMeshes.push(bookMesh);
+        }
+
+        function createFallbackCover(bookMesh, book) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 768;
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#8b7355');
+            gradient.addColorStop(1, '#5d4e37');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#d4af37';
+            ctx.lineWidth = 6;
+            ctx.strokeRect(15, 15, canvas.width - 30, canvas.height - 30);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            const title = book.title;
+            const maxWidth = canvas.width - 60;
+            const lineHeight = 30;
+            const words = title.split(' ');
+            let line = '';
+            let y = 90;
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const testWidth = ctx.measureText(testLine).width;
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, canvas.width / 2, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, canvas.width / 2, y);
+            ctx.font = '21px Arial';
+            ctx.fillStyle = '#e0e0e0';
+            ctx.fillText(book.author, canvas.width / 2, canvas.height - 90);
+            const texture = new THREE.CanvasTexture(canvas);
+            const materials = [
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                new THREE.MeshPhongMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
+            ];
+            bookMesh.material = materials;
+        }
+
+
+        // =============================================================================
+        // RENDER LOOP & UTILITIES
+        // =============================================================================
+        const clock = new THREE.Clock();
+
+        function animate() {
+            renderer.setAnimationLoop(() => {
+                const delta = clock.getDelta();
+
+                inputController.update();
+
+                // Check for the reset action
+                if (inputController.actions.reset) {
+                    playerController.resetView();
+                    inputController.actions.reset = false; // Reset the action so it only runs once
+                }
+
+                playerController.update(delta, inputController.actions);
+
+                renderer.render(scene, camera);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // =============================================================================
+        // START APPLICATION
+        // =============================================================================
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
