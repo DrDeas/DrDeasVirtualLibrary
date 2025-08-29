@@ -4567,15 +4567,25 @@
             }
 
             connect() {
-                this.domElement.addEventListener('click', () => this.domElement.requestPointerLock());
-                document.addEventListener('pointerlockchange', () => {
-                    if (document.pointerLockElement === this.domElement) {
-                        document.addEventListener('mousemove', this.onMouseMove, false);
-                    } else {
-                        document.removeEventListener('mousemove', this.onMouseMove, false);
-                    }
-                });
-            }
+            let isDragging = false;
+
+            // Start dragging when the mouse is pressed down on the canvas
+            this.domElement.addEventListener('mousedown', () => {
+                isDragging = true;
+            });
+
+            // Stop dragging when the mouse button is released anywhere on the page
+            window.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // Move the camera only when dragging
+            window.addEventListener('mousemove', (event) => {
+                if (isDragging) {
+                    this.onMouseMove(event);
+                }
+            });
+        }
 
             onMouseMove = (event) => {
                 this.camera.rotation.y -= event.movementX * 0.002;
