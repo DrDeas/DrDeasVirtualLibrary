@@ -4505,7 +4505,7 @@
             inputController.connect();
             playerController = new PlayerController(camera, renderer.domElement);
 
-            setupNavigationTool();
+            
             createLighting();
             createLibraryEnvironment();
             createBookShelves();
@@ -4514,6 +4514,7 @@
             setupVR();
 
             document.getElementById('bookCount').textContent = books.length;
+            setupNavigationTool();
             window.addEventListener('resize', onWindowResize);
             animate();
         }
