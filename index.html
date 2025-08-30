@@ -56,6 +56,10 @@
             font-size: 14px;
         }
 
+        #info p:nth-child(n+3):nth-child(-n+5) {
+            padding-left: 20px;
+        }
+        
         #vrButton {
             position: absolute;
             bottom: 20px;
@@ -186,9 +190,9 @@
         <h3>Dr. Deas Virtual Library</h3>
         <p>Click "Enter VR" in any supported VR headset</p>
         <p>Desktop: Use arrow keys (↑↓←→) to explore</p>
-        <p>   ● W/S keys: Move vertically up/down</p>
-        <p>   ● A/D keys: Rotate left/right</p>
-        <p>   ● R key: Reset view</p>
+        <p>● W/S keys: Move vertically up/down</p>
+        <p>● A/D keys: Rotate left/right</p>
+        <p>● R key: Reset view</p>
         <p>Books loaded: <span id="bookCount" style="color: var(--accent-gold); font-weight: bold;">0</span> (Click books to view details)</p>
     </div>
     <button id="vrButton">Enter VR</button>
