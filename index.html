@@ -4482,7 +4482,6 @@
             }
         }
 
-
         // =============================================================================
         // CONTROLS & INTERACTIONS
         // =============================================================================
@@ -4519,30 +4518,26 @@
                 if (event.code === 'KeyR' && isPressed) {
                     this.actions.reset = true;
                 }
-                
-                // Prevent browser shortcuts
-                if ((event.metaKey || event.ctrlKey) && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
-                    event.preventDefault();
-                }
             }
             
             update() {
-                const isModActive = this.keys.has('MetaLeft') || this.keys.has('MetaRight') || this.keys.has('ControlLeft') || this.keys.has('ControlRight');
+                // Arrow key movement (forward/backward/strafe)
+                const arrowFwd = this.keys.has('ArrowUp');
+                const arrowBwd = this.keys.has('ArrowDown');
+                const arrowLeft = this.keys.has('ArrowLeft');
+                const arrowRight = this.keys.has('ArrowRight');
                 
-                const fwd = (this.keys.has('ArrowUp') || this.keys.has('KeyW')) && !isModActive;
-                const bwd = (this.keys.has('ArrowDown') || this.keys.has('KeyS')) && !isModActive;
-                const left = (this.keys.has('ArrowLeft') || this.keys.has('KeyA')) && !isModActive;
-                const right = (this.keys.has('ArrowRight') || this.keys.has('KeyD')) && !isModActive;
-                
-                const up = this.keys.has('ArrowUp') && isModActive;
-                const down = this.keys.has('ArrowDown') && isModActive;
-                const rotLeft = this.keys.has('ArrowLeft') && isModActive;
-                const rotRight = this.keys.has('ArrowRight') && isModActive;
+                // WASD controls
+                const wKey = this.keys.has('KeyW');  // Up vertically
+                const sKey = this.keys.has('KeyS');  // Down vertically
+                const aKey = this.keys.has('KeyA');  // Rotate left
+                const dKey = this.keys.has('KeyD');  // Rotate right
 
-                this.actions.moveForward = Number(bwd) - Number(fwd);
-                this.actions.moveStrafe = Number(right) - Number(left);
-                this.actions.moveVertical = Number(up) - Number(down);
-                this.actions.lookHorizontal = Number(rotRight) - Number(rotLeft);
+                // Set movement actions
+                this.actions.moveForward = Number(arrowBwd) - Number(arrowFwd);
+                this.actions.moveStrafe = Number(arrowRight) - Number(arrowLeft);
+                this.actions.moveVertical = Number(wKey) - Number(sKey);
+                this.actions.lookHorizontal = Number(dKey) - Number(aKey);
             }
         }
 
@@ -4574,25 +4569,25 @@
             }
 
             connect() {
-            let isDragging = false;
+                let isDragging = false;
 
-            // Start dragging when the mouse is pressed down on the canvas
-            this.domElement.addEventListener('mousedown', () => {
-                isDragging = true;
-            });
+                // Start dragging when the mouse is pressed down on the canvas
+                this.domElement.addEventListener('mousedown', () => {
+                    isDragging = true;
+                });
 
-            // Stop dragging when the mouse button is released anywhere on the page
-            window.addEventListener('mouseup', () => {
-                isDragging = false;
-            });
+                // Stop dragging when the mouse button is released anywhere on the page
+                window.addEventListener('mouseup', () => {
+                    isDragging = false;
+                });
 
-            // Move the camera only when dragging
-            window.addEventListener('mousemove', (event) => {
-                if (isDragging) {
-                    this.onMouseMove(event);
-                }
-            });
-        }
+                // Move the camera only when dragging
+                window.addEventListener('mousemove', (event) => {
+                    if (isDragging) {
+                        this.onMouseMove(event);
+                    }
+                });
+            }
 
             onMouseMove = (event) => {
                 this.camera.rotation.y -= event.movementX * 0.002;
@@ -4923,7 +4918,6 @@
             ];
             bookMesh.material = materials;
         }
-
 
         // =============================================================================
         // RENDER LOOP & UTILITIES
