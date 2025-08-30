@@ -84,54 +84,59 @@
             cursor: not-allowed;
         }
 
-#navigationTool {
-    position: absolute;
-    bottom: 80px;
-    right: 20px;
-    z-index: 100;
-    background: rgba(26, 26, 46, 0.9);
-    border: 2px solid var(--primary-brown);
-    border-radius: 8px;
-    padding: 10px;
-    display: grid;
-    grid-template-columns: repeat(3, 50px);
-    grid-template-rows: repeat(3, 50px);
-    gap: 5px;
-}
+        #navigationTool {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(26, 26, 46, 0.9);
+            border: 2px solid var(--primary-brown);
+            border-radius: 8px;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 50px);
+            grid-template-rows: repeat(3, 50px);
+            gap: 5px;
+        }
 
-.nav-btn {
-    width: 50px;
-    height: 50px;
-    background: var(--primary-brown);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
-}
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            background: var(--primary-brown);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
 
-.nav-btn:hover {
-    background: var(--primary-brown-hover);
-}
+        .nav-btn:hover {
+            background: var(--primary-brown-hover);
+        }
 
-.nav-btn:active {
-    background: #4a3829;
-    transform: scale(0.95);
-}
+        .nav-btn:active {
+            background: #4a3829;
+            transform: scale(0.95);
+        }
 
-#navUp { grid-column: 2; grid-row: 1; }
-#navDown { grid-column: 2; grid-row: 3; }
-#navLeft { grid-column: 1; grid-row: 2; }
-#navRight { grid-column: 3; grid-row: 2; }
-#navForward { grid-column: 2; grid-row: 2; font-size: 10px; }
-#navBackward { grid-column: 1; grid-row: 3; font-size: 10px; }
-#navRotateLeft { grid-column: 1; grid-row: 1; font-size: 10px; }
-#navRotateRight { grid-column: 3; grid-row: 1; font-size: 10px; }
+        .nav-btn:disabled {
+            background: var(--disabled-bg);
+            cursor: not-allowed;
+        }
+
+        #navUp { grid-column: 2; grid-row: 1; }
+        #navDown { grid-column: 2; grid-row: 3; }
+        #navLeft { grid-column: 1; grid-row: 2; }
+        #navRight { grid-column: 3; grid-row: 2; }
+        #navForward { grid-column: 2; grid-row: 2; font-size: 10px; }
+        #navBackward { grid-column: 1; grid-row: 3; font-size: 10px; }
+        #navRotateLeft { grid-column: 1; grid-row: 1; font-size: 10px; }
+        #navRotateRight { grid-column: 3; grid-row: 1; font-size: 10px; }
         
         canvas {
             display: block;
@@ -231,6 +236,21 @@
                 width: 95%;
                 margin: 2% auto;
             }
+
+            #navigationTool {
+                bottom: 60px;
+                right: 10px;
+                padding: 8px;
+                grid-template-columns: repeat(3, 40px);
+                grid-template-rows: repeat(3, 40px);
+                gap: 4px;
+            }
+
+            .nav-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 10px;
+            }
         }
     </style>
 </head>
@@ -247,15 +267,15 @@
     <button id="vrButton">Enter VR</button>
 
     <div id="navigationTool">
-    <button class="nav-btn" id="navRotateLeft">↺ L</button>
-    <button class="nav-btn" id="navUp">▲</button>
-    <button class="nav-btn" id="navRotateRight">↻ R</button>
-    <button class="nav-btn" id="navLeft">◄</button>
-    <button class="nav-btn" id="navForward">FWD</button>
-    <button class="nav-btn" id="navRight">►</button>
-    <button class="nav-btn" id="navBackward">BWD</button>
-    <button class="nav-btn" id="navDown">▼</button>
-</div>
+        <button class="nav-btn" id="navRotateLeft" aria-label="Rotate Left">↺ L</button>
+        <button class="nav-btn" id="navUp" aria-label="Move Up">▲</button>
+        <button class="nav-btn" id="navRotateRight" aria-label="Rotate Right">↻ R</button>
+        <button class="nav-btn" id="navLeft" aria-label="Move Left">◄</button>
+        <button class="nav-btn" id="navForward" aria-label="Move Forward">FWD</button>
+        <button class="nav-btn" id="navRight" aria-label="Move Right">►</button>
+        <button class="nav-btn" id="navBackward" aria-label="Move Backward">BWD</button>
+        <button class="nav-btn" id="navDown" aria-label="Move Down">▼</button>
+    </div>
 
     <div id="bookModal" class="modal">
         <div class="modal-content">
@@ -281,7 +301,6 @@
         // =============================================================================
         // DATA
         // =============================================================================
-
         const books = [
             {
     "number": 1,
@@ -4437,7 +4456,6 @@
   }
         ];
 
-
         // =============================================================================
         // CONFIGURATION & CONSTANTS
         // =============================================================================
@@ -4478,6 +4496,11 @@
         function init() {
             modal = document.getElementById('bookModal');
             closeBtn = document.querySelector('.close');
+
+            if (!modal || !closeBtn) {
+                console.error('Required DOM elements not found');
+                return;
+            }
 
             closeBtn.onclick = () => { modal.style.display = 'none'; };
             window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; };
@@ -4521,6 +4544,11 @@
 
         function setupVR() {
             vrButton = document.getElementById('vrButton');
+            if (!vrButton) {
+                console.error('VR button not found');
+                return;
+            }
+
             if ('xr' in navigator) {
                 navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
                     if (supported) {
@@ -4544,6 +4572,10 @@
                         vrButton.textContent = 'VR Not Supported';
                         vrButton.disabled = true;
                     }
+                }).catch((error) => {
+                    console.error('Error checking VR support:', error);
+                    vrButton.textContent = 'VR Error';
+                    vrButton.disabled = true;
                 });
             } else {
                 vrButton.textContent = 'VR Not Supported';
@@ -4551,74 +4583,58 @@
             }
         }
 
-
-    function setupNavigationTool() {
-    const navButtons = {
-        navUp: { action: 'moveVertical', value: 1 },
-        navDown: { action: 'moveVertical', value: -1 },
-        navLeft: { action: 'moveStrafe', value: -1 },
-        navRight: { action: 'moveStrafe', value: 1 },
-        navForward: { action: 'moveForward', value: -1 },
-        navBackward: { action: 'moveForward', value: 1 },
-        navRotateLeft: { action: 'lookHorizontal', value: -1 },
-        navRotateRight: { action: 'lookHorizontal', value: 1 }
-    };
-
-    Object.keys(navButtons).forEach(buttonId => {
-        const button = document.getElementById(buttonId);
-        const config = navButtons[buttonId];
-        
-        let isPressed = false;
-        let animationId = null;
-
-        const startAction = () => {
-            if (isPressed) return;
-            isPressed = true;
-            
-            const performAction = () => {
-                if (isPressed) {
-                    inputController.actions[config.action] = config.value;
-                    animationId = requestAnimationFrame(performAction);
-                }
+        function setupNavigationTool() {
+            const navButtons = {
+                navUp: { action: 'moveVertical', value: 1 },
+                navDown: { action: 'moveVertical', value: -1 },
+                navLeft: { action: 'moveStrafe', value: -1 },
+                navRight: { action: 'moveStrafe', value: 1 },
+                navForward: { action: 'moveForward', value: -1 },
+                navBackward: { action: 'moveForward', value: 1 },
+                navRotateLeft: { action: 'lookHorizontal', value: -1 },
+                navRotateRight: { action: 'lookHorizontal', value: 1 }
             };
-            performAction();
-        };
 
-        const stopAction = () => {
-            if (!isPressed) return;
-            isPressed = false;
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
-            }
-            inputController.actions[config.action] = 0;
-        };
+            Object.keys(navButtons).forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (!button) {
+                    console.error(`Navigation button ${buttonId} not found`);
+                    return;
+                }
 
-        // Mouse events
-        button.addEventListener('mousedown', startAction);
-        button.addEventListener('mouseup', stopAction);
-        button.addEventListener('mouseleave', stopAction);
+                const config = navButtons[buttonId];
+                let isPressed = false;
 
-        // Touch events for mobile
-        button.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            startAction();
-        });
-        button.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            stopAction();
-        });
-        button.addEventListener('touchcancel', (e) => {
-            e.preventDefault();
-            stopAction();
-        });
-    });
+                const startAction = (e) => {
+                    if (e) e.preventDefault();
+                    if (isPressed) return;
+                    isPressed = true;
+                    inputController.setButtonAction(config.action, config.value);
+                    button.classList.add('active');
+                };
 
-    // Prevent context menu on right click
-    document.getElementById('navigationTool').addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-    });
-}
+                const stopAction = (e) => {
+                    if (e) e.preventDefault();
+                    if (!isPressed) return;
+                    isPressed = false;
+                    inputController.setButtonAction(config.action, 0);
+                    button.classList.remove('active');
+                };
+
+                // Mouse events
+                button.addEventListener('mousedown', startAction);
+                button.addEventListener('mouseup', stopAction);
+                button.addEventListener('mouseleave', stopAction);
+
+                // Touch events for mobile
+                button.addEventListener('touchstart', startAction, { passive: false });
+                button.addEventListener('touchend', stopAction, { passive: false });
+                button.addEventListener('touchcancel', stopAction, { passive: false });
+
+                // Prevent context menu
+                button.addEventListener('contextmenu', (e) => e.preventDefault());
+            });
+        }
         
         // =============================================================================
         // CONTROLS & INTERACTIONS
@@ -4630,6 +4646,12 @@
         class InputController {
             constructor() {
                 this.keys = new Set();
+                this.buttonActions = {
+                    moveForward: 0,
+                    moveStrafe: 0,
+                    moveVertical: 0,
+                    lookHorizontal: 0
+                };
                 this.actions = {
                     moveForward: 0,
                     moveStrafe: 0,
@@ -4657,6 +4679,12 @@
                     this.actions.reset = true;
                 }
             }
+
+            setButtonAction(action, value) {
+                if (this.buttonActions.hasOwnProperty(action)) {
+                    this.buttonActions[action] = value;
+                }
+            }
             
             update() {
                 // Arrow key movement (forward/backward/strafe)
@@ -4671,11 +4699,17 @@
                 const aKey = this.keys.has('KeyA');  // Rotate left
                 const dKey = this.keys.has('KeyD');  // Rotate right
 
-                // Set movement actions
-                this.actions.moveForward = Number(arrowBwd) - Number(arrowFwd);
-                this.actions.moveStrafe = Number(arrowRight) - Number(arrowLeft);
-                this.actions.moveVertical = Number(wKey) - Number(sKey);
-                this.actions.lookHorizontal = Number(dKey) - Number(aKey);
+                // Combine keyboard and button inputs
+                this.actions.moveForward = (Number(arrowBwd) - Number(arrowFwd)) + this.buttonActions.moveForward;
+                this.actions.moveStrafe = (Number(arrowRight) - Number(arrowLeft)) + this.buttonActions.moveStrafe;
+                this.actions.moveVertical = (Number(wKey) - Number(sKey)) + this.buttonActions.moveVertical;
+                this.actions.lookHorizontal = (Number(dKey) - Number(aKey)) + this.buttonActions.lookHorizontal;
+
+                // Clamp values to prevent excessive speed
+                this.actions.moveForward = Math.max(-1, Math.min(1, this.actions.moveForward));
+                this.actions.moveStrafe = Math.max(-1, Math.min(1, this.actions.moveStrafe));
+                this.actions.moveVertical = Math.max(-1, Math.min(1, this.actions.moveVertical));
+                this.actions.lookHorizontal = Math.max(-1, Math.min(1, this.actions.lookHorizontal));
             }
         }
 
