@@ -4870,7 +4870,7 @@
                 const materials = [
                     new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
                     new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
-                    new THREE.MeshPhongMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
+                    new THREE.MeshBasicMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
                 ];
                 bookMesh.material = materials;
             }, undefined, () => createFallbackCover(bookMesh, book));
@@ -4919,7 +4919,7 @@
             const materials = [
                 new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
                 new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
-                new THREE.MeshPhongMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
+                new THREE.MeshBasicMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
             ];
             bookMesh.material = materials;
         }
