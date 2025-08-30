@@ -84,6 +84,55 @@
             cursor: not-allowed;
         }
 
+#navigationTool {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    z-index: 100;
+    background: rgba(26, 26, 46, 0.9);
+    border: 2px solid var(--primary-brown);
+    border-radius: 8px;
+    padding: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 50px);
+    grid-template-rows: repeat(3, 50px);
+    gap: 5px;
+}
+
+.nav-btn {
+    width: 50px;
+    height: 50px;
+    background: var(--primary-brown);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+
+.nav-btn:hover {
+    background: var(--primary-brown-hover);
+}
+
+.nav-btn:active {
+    background: #4a3829;
+    transform: scale(0.95);
+}
+
+#navUp { grid-column: 2; grid-row: 1; }
+#navDown { grid-column: 2; grid-row: 3; }
+#navLeft { grid-column: 1; grid-row: 2; }
+#navRight { grid-column: 3; grid-row: 2; }
+#navForward { grid-column: 2; grid-row: 2; font-size: 10px; }
+#navBackward { grid-column: 1; grid-row: 3; font-size: 10px; }
+#navRotateLeft { grid-column: 1; grid-row: 1; font-size: 10px; }
+#navRotateRight { grid-column: 3; grid-row: 1; font-size: 10px; }
+        
         canvas {
             display: block;
             cursor: pointer;
@@ -196,6 +245,17 @@
         <p>Books loaded: <span id="bookCount" style="color: var(--accent-gold); font-weight: bold;">0</span> (Click books to view details)</p>
     </div>
     <button id="vrButton">Enter VR</button>
+
+    <div id="navigationTool">
+    <button class="nav-btn" id="navRotateLeft">↺ L</button>
+    <button class="nav-btn" id="navUp">▲</button>
+    <button class="nav-btn" id="navRotateRight">↻ R</button>
+    <button class="nav-btn" id="navLeft">◄</button>
+    <button class="nav-btn" id="navForward">FWD</button>
+    <button class="nav-btn" id="navRight">►</button>
+    <button class="nav-btn" id="navBackward">BWD</button>
+    <button class="nav-btn" id="navDown">▼</button>
+</div>
 
     <div id="bookModal" class="modal">
         <div class="modal-content">
@@ -4445,6 +4505,7 @@
             inputController.connect();
             playerController = new PlayerController(camera, renderer.domElement);
 
+            setupNavigationTool();
             createLighting();
             createLibraryEnvironment();
             createBookShelves();
@@ -4489,6 +4550,75 @@
             }
         }
 
+
+    function setupNavigationTool() {
+    const navButtons = {
+        navUp: { action: 'moveVertical', value: 1 },
+        navDown: { action: 'moveVertical', value: -1 },
+        navLeft: { action: 'moveStrafe', value: -1 },
+        navRight: { action: 'moveStrafe', value: 1 },
+        navForward: { action: 'moveForward', value: -1 },
+        navBackward: { action: 'moveForward', value: 1 },
+        navRotateLeft: { action: 'lookHorizontal', value: -1 },
+        navRotateRight: { action: 'lookHorizontal', value: 1 }
+    };
+
+    Object.keys(navButtons).forEach(buttonId => {
+        const button = document.getElementById(buttonId);
+        const config = navButtons[buttonId];
+        
+        let isPressed = false;
+        let animationId = null;
+
+        const startAction = () => {
+            if (isPressed) return;
+            isPressed = true;
+            
+            const performAction = () => {
+                if (isPressed) {
+                    inputController.actions[config.action] = config.value;
+                    animationId = requestAnimationFrame(performAction);
+                }
+            };
+            performAction();
+        };
+
+        const stopAction = () => {
+            if (!isPressed) return;
+            isPressed = false;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            inputController.actions[config.action] = 0;
+        };
+
+        // Mouse events
+        button.addEventListener('mousedown', startAction);
+        button.addEventListener('mouseup', stopAction);
+        button.addEventListener('mouseleave', stopAction);
+
+        // Touch events for mobile
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startAction();
+        });
+        button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            stopAction();
+        });
+        button.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            stopAction();
+        });
+    });
+
+    // Prevent context menu on right click
+    document.getElementById('navigationTool').addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+    });
+}
+        
         // =============================================================================
         // CONTROLS & INTERACTIONS
         // =============================================================================
