@@ -5039,7 +5039,9 @@
             loader.load(book.customCoverUrl, (texture) => {
                 // Ensure the texture colors are preserved
                 texture.encoding = THREE.sRGBEncoding;
-                texture.flipY = false;
+                texture.flipY = true;
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
                 
                 const materials = [
                     new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Right
