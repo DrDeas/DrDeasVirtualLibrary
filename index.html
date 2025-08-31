@@ -5037,10 +5037,17 @@
             bookMesh.castShadow = true;
             bookMesh.userData = { book };
             loader.load(book.customCoverUrl, (texture) => {
+                // Ensure the texture colors are preserved
+                texture.encoding = THREE.sRGBEncoding;
+                texture.flipY = false;
+                
                 const materials = [
-                    new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
-                    new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
-                    new THREE.MeshBasicMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Right
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Left  
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Top
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Bottom
+                    new THREE.MeshLambertMaterial({ map: texture }), // Front (book cover)
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 })  // Back
                 ];
                 bookMesh.material = materials;
             }, undefined, () => createFallbackCover(bookMesh, book));
