@@ -4135,7 +4135,7 @@ const books = [
     "category": "Novel",
     "ownership": "Library",
     "status": "Finished",
-    "dateCompleted": "2025-08-28",
+    "dateCompleted": "2025-08-30",
     "customCoverUrl": "https://raw.githubusercontent.com/DrDeas/DrDeasBookLog/refs/heads/main/images/Book_00345.jpg",
     "id": 345,
     "summary": "A newcomer to West Egg, New York, becomes entangled in the opulent and decadent lives of his wealthy neighbors, particularly a mysterious millionaire known for his lavish parties and his unrequited love for a married woman. The narrative explores themes of the American Dream, social class, idealism, and illusion, culminating in tragedy amidst the glittering facade of the Jazz Age."
