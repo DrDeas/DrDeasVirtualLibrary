@@ -5789,20 +5789,20 @@ function createRealTimeClock() {
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 48px Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(timeString, canvas.width / 2, canvas.height / 2 - 20);
+        ctx.fillText(timeString, canvas.width / 2, canvas.height / 2 + 60);
         
         // Draw date
         ctx.font = 'bold 24px Arial, sans-serif';
-        ctx.fillText(dateString, canvas.width / 2, canvas.height / 2 + 40);
+        ctx.fillText(dateString, canvas.width / 2, canvas.height / 2 + 120);
         
         // Draw "Current Time" label at top
         ctx.font = 'bold 20px Arial, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillStyle = '#d4af37';
-        ctx.fillText('\"Time exists in order that everything doesn’t ', canvas.width / 12, 60);
-        ctx.fillText('happen all at once … and books exist so that', canvas.width / 12, 90);
-        ctx.fillText('it isn’t all forgotten.\"', canvas.width / 12, 120);
-        ctx.fillText('– Susan Sontag', canvas.width / 1.625, 150);
+        ctx.fillText('\"Time exists in order that everything doesn’t ', canvas.width / 12, 80);
+        ctx.fillText('happen all at once … and books exist so that', canvas.width / 12, 110);
+        ctx.fillText('it isn’t all forgotten.\"', canvas.width / 12, 140);
+        ctx.fillText('– Susan Sontag', canvas.width / 1.625, 170);
         
         // Update texture
         clockTexture.needsUpdate = true;
