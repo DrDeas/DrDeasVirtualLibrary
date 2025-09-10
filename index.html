@@ -6,10 +6,12 @@
     <title>Dr. Deas Virtual Library</title>
 
     <meta property="og:title" content="Dr. Deas Virtual Library">
-    <meta property="og:description" content="Track Dr. Deas's progress in the 1,000 Books in 1,000 Weeks Reading Challenge in an immersive, interactive virtual library environment — optimized for a VR headset.">
+    <meta property="og:description" content="Experience Dr. Deas's reading collection in an immersive luxury mansion environment — optimized for VR headset.">
     <meta property="og:image" content="https://drdeas.github.io/DrDeasVirtualLibrary/341_books_collage.png">
     <meta property="og:url" content="https://drdeas.github.io/DrDeasVirtualLibrary/index.html">
     <meta property="og:type" content="website">
+
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -299,10 +301,9 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script>
         // =============================================================================
-        // DATA
+        // DATA (First 3 books only)
         // =============================================================================
         const books = [
             {
@@ -4510,9 +4511,9 @@
         // =============================================================================
         // CONFIGURATION & CONSTANTS
         // =============================================================================
-        const LIBRARY_WIDTH = 40;
-        const LIBRARY_DEPTH = 40;
-        const LIBRARY_HEIGHT = 10;
+        const LIBRARY_WIDTH = 60;
+        const LIBRARY_DEPTH = 60;
+        const LIBRARY_HEIGHT = 12;
         const BOOKS_PER_SHELF = 8;
         const SHELVES_PER_BOOKCASE = 5;
         const BOOKS_PER_BOOKCASE = BOOKS_PER_SHELF * SHELVES_PER_BOOKCASE;
@@ -4537,163 +4538,15 @@
         let inputController, playerController;
 
         const bookMeshes = [];
+        const collisionMeshes = [];
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let modal, closeBtn;
+        const clock = new THREE.Clock();
 
         // =============================================================================
-        // INITIALIZATION & SETUP
+        // INPUT CONTROLLER CLASS
         // =============================================================================
-        function init() {
-            modal = document.getElementById('bookModal');
-            closeBtn = document.querySelector('.close');
-
-            if (!modal || !closeBtn) {
-                console.error('Required DOM elements not found');
-                return;
-            }
-
-            closeBtn.onclick = () => { modal.style.display = 'none'; };
-            window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; };
-
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f0f23);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 3.5, 8);
-            
-            // Store initial state for resetting
-            camera.userData.initialPosition = camera.position.clone();
-            camera.userData.initialRotation = camera.rotation.clone();
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            renderer.xr.enabled = true;
-            renderer.outputEncoding = THREE.sRGBEncoding;
-            document.body.appendChild(renderer.domElement);
-            
-            inputController = new InputController();
-            inputController.connect();
-            playerController = new PlayerController(camera, renderer.domElement);
-
-            
-            createLighting();
-            createLibraryEnvironment();
-            createBookShelves();
-            createLibraryFurniture();
-            setupMouseInteraction();
-            setupVR();
-
-            document.getElementById('bookCount').textContent = books.length;
-            setupNavigationTool();
-            window.addEventListener('resize', onWindowResize);
-            animate();
-        }
-
-        function setupVR() {
-            vrButton = document.getElementById('vrButton');
-            if (!vrButton) {
-                console.error('VR button not found');
-                return;
-            }
-
-            if ('xr' in navigator) {
-                navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
-                    if (supported) {
-                        vrButton.addEventListener('click', () => {
-                            if (isVREnabled) {
-                                renderer.xr.getSession().end();
-                            } else {
-                                navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] })
-                                    .then((session) => {
-                                        renderer.xr.setSession(session);
-                                        isVREnabled = true;
-                                        vrButton.textContent = 'Exit VR';
-                                        session.addEventListener('end', () => {
-                                            isVREnabled = false;
-                                            vrButton.textContent = 'Enter VR';
-                                        });
-                                    }).catch((error) => console.error('VR session failed:', error));
-                            }
-                        });
-                    } else {
-                        vrButton.textContent = 'VR Not Supported';
-                        vrButton.disabled = true;
-                    }
-                }).catch((error) => {
-                    console.error('Error checking VR support:', error);
-                    vrButton.textContent = 'VR Error';
-                    vrButton.disabled = true;
-                });
-            } else {
-                vrButton.textContent = 'VR Not Supported';
-                vrButton.disabled = true;
-            }
-        }
-
-        function setupNavigationTool() {
-            const navButtons = {
-                navUp: { action: 'moveVertical', value: 1 },
-                navDown: { action: 'moveVertical', value: -1 },
-                navLeft: { action: 'moveStrafe', value: -1 },
-                navRight: { action: 'moveStrafe', value: 1 },
-                navForward: { action: 'moveForward', value: -1 },
-                navBackward: { action: 'moveForward', value: 1 },
-                navRotateLeft: { action: 'lookHorizontal', value: -1 },
-                navRotateRight: { action: 'lookHorizontal', value: 1 }
-            };
-
-            Object.keys(navButtons).forEach(buttonId => {
-                const button = document.getElementById(buttonId);
-                if (!button) {
-                    console.error(`Navigation button ${buttonId} not found`);
-                    return;
-                }
-
-                const config = navButtons[buttonId];
-                let isPressed = false;
-
-                const startAction = (e) => {
-                    if (e) e.preventDefault();
-                    if (isPressed) return;
-                    isPressed = true;
-                    inputController.setButtonAction(config.action, config.value);
-                    button.classList.add('active');
-                };
-
-                const stopAction = (e) => {
-                    if (e) e.preventDefault();
-                    if (!isPressed) return;
-                    isPressed = false;
-                    inputController.setButtonAction(config.action, 0);
-                    button.classList.remove('active');
-                };
-
-                // Mouse events
-                button.addEventListener('mousedown', startAction);
-                button.addEventListener('mouseup', stopAction);
-                button.addEventListener('mouseleave', stopAction);
-
-                // Touch events for mobile
-                button.addEventListener('touchstart', startAction, { passive: false });
-                button.addEventListener('touchend', stopAction, { passive: false });
-                button.addEventListener('touchcancel', stopAction, { passive: false });
-
-                // Prevent context menu
-                button.addEventListener('contextmenu', (e) => e.preventDefault());
-            });
-        }
-        
-        // =============================================================================
-        // CONTROLS & INTERACTIONS
-        // =============================================================================
-
-        /**
-         * Manages raw keyboard and mouse input and translates it into abstract actions.
-         */
         class InputController {
             constructor() {
                 this.keys = new Set();
@@ -4725,7 +4578,6 @@
                     this.keys.delete(event.code);
                 }
 
-                // Trigger reset on the 'R' key down event
                 if (event.code === 'KeyR' && isPressed) {
                     this.actions.reset = true;
                 }
@@ -4738,25 +4590,21 @@
             }
             
             update() {
-                // Arrow key movement (forward/backward/strafe)
                 const arrowFwd = this.keys.has('ArrowUp');
                 const arrowBwd = this.keys.has('ArrowDown');
                 const arrowLeft = this.keys.has('ArrowLeft');
                 const arrowRight = this.keys.has('ArrowRight');
                 
-                // WASD controls
-                const wKey = this.keys.has('KeyW');  // Up vertically
-                const sKey = this.keys.has('KeyS');  // Down vertically
-                const aKey = this.keys.has('KeyA');  // Rotate left
-                const dKey = this.keys.has('KeyD');  // Rotate right
+                const wKey = this.keys.has('KeyW');
+                const sKey = this.keys.has('KeyS');
+                const aKey = this.keys.has('KeyA');
+                const dKey = this.keys.has('KeyD');
 
-                // Combine keyboard and button inputs
                 this.actions.moveForward = (Number(arrowBwd) - Number(arrowFwd)) + this.buttonActions.moveForward;
                 this.actions.moveStrafe = (Number(arrowRight) - Number(arrowLeft)) + this.buttonActions.moveStrafe;
                 this.actions.moveVertical = (Number(wKey) - Number(sKey)) + this.buttonActions.moveVertical;
                 this.actions.lookHorizontal = (Number(dKey) - Number(aKey)) + this.buttonActions.lookHorizontal;
 
-                // Clamp values to prevent excessive speed
                 this.actions.moveForward = Math.max(-1, Math.min(1, this.actions.moveForward));
                 this.actions.moveStrafe = Math.max(-1, Math.min(1, this.actions.moveStrafe));
                 this.actions.moveVertical = Math.max(-1, Math.min(1, this.actions.moveVertical));
@@ -4764,47 +4612,32 @@
             }
         }
 
-        /**
-         * Manages camera physics and movement based on actions from the InputController.
-         */
+        // =============================================================================
+        // PLAYER CONTROLLER CLASS
+        // =============================================================================
         class PlayerController {
             constructor(camera, domElement) {
                 this.camera = camera;
                 this.domElement = domElement;
-
                 this.linearVelocity = new THREE.Vector3();
                 this.angularVelocity = new THREE.Vector3();
-                
-                this.acceleration = 40.0;
-                this.rotationSpeed = 3.5;
+                this.acceleration = 80.0;
+                this.rotationSpeed = 7;
                 this.friction = 10.0;
-
                 this.connect();
             }
             
             resetView() {
                 this.camera.position.copy(this.camera.userData.initialPosition);
                 this.camera.rotation.copy(this.camera.userData.initialRotation);
-                
-                // Stop all movement immediately
                 this.linearVelocity.set(0, 0, 0);
                 this.angularVelocity.set(0, 0, 0);
             }
 
             connect() {
                 let isDragging = false;
-
-                // Start dragging when the mouse is pressed down on the canvas
-                this.domElement.addEventListener('mousedown', () => {
-                    isDragging = true;
-                });
-
-                // Stop dragging when the mouse button is released anywhere on the page
-                window.addEventListener('mouseup', () => {
-                    isDragging = false;
-                });
-
-                // Move the camera only when dragging
+                this.domElement.addEventListener('mousedown', () => { isDragging = true; });
+                window.addEventListener('mouseup', () => { isDragging = false; });
                 window.addEventListener('mousemove', (event) => {
                     if (isDragging) {
                         this.onMouseMove(event);
@@ -4818,107 +4651,496 @@
                 this.camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.camera.rotation.x));
             }
 
+            checkCollisions(newPosition) {
+                const collisionDistance = 1.5;
+                
+                for (let collisionMesh of collisionMeshes) {
+                    const distance = newPosition.distanceTo(collisionMesh.position);
+                    if (distance < collisionDistance) {
+                        return true;
+                    }
+                }
+                
+                if (newPosition.x < -LIBRARY_WIDTH / 2 + 4 || newPosition.x > LIBRARY_WIDTH / 2 - 4 ||
+                    newPosition.z < -LIBRARY_DEPTH / 2 + 14 || newPosition.z > LIBRARY_DEPTH / 2 - 4) {
+                    return true;
+                }
+                
+                return false;
+            }
+
             update(delta, actions) {
                 this.linearVelocity.x -= this.linearVelocity.x * this.friction * delta;
                 this.linearVelocity.z -= this.linearVelocity.z * this.friction * delta;
                 this.linearVelocity.y -= this.linearVelocity.y * this.friction * delta;
                 this.angularVelocity.y -= this.angularVelocity.y * this.friction * delta;
 
+                // Create movement direction in local space
                 const direction = new THREE.Vector3(actions.moveStrafe, actions.moveVertical, actions.moveForward);
                 direction.normalize();
 
                 if (direction.length() > 0) {
-                   this.linearVelocity.x += direction.x * this.acceleration * delta;
-                   this.linearVelocity.z += direction.z * this.acceleration * delta;
-                   this.linearVelocity.y += direction.y * this.acceleration * delta;
+                    // Apply camera rotation to movement direction for proper world-space movement
+                    const cameraDirection = direction.clone();
+                    cameraDirection.applyEuler(new THREE.Euler(0, this.camera.rotation.y, 0));
+                    
+                    this.linearVelocity.x += cameraDirection.x * this.acceleration * delta;
+                    this.linearVelocity.z += cameraDirection.z * this.acceleration * delta;
+                    this.linearVelocity.y += direction.y * this.acceleration * delta; // Keep Y movement unchanged
                 }
 
                 if (actions.lookHorizontal !== 0) {
                     this.angularVelocity.y += actions.lookHorizontal * this.rotationSpeed * delta;
                 }
 
-                this.camera.translateX(this.linearVelocity.x * delta);
-                this.camera.translateZ(this.linearVelocity.z * delta);
+                const newPosition = this.camera.position.clone();
+                newPosition.x += this.linearVelocity.x * delta;
+                newPosition.z += this.linearVelocity.z * delta;
+                
+                const testPosX = this.camera.position.clone();
+                testPosX.x = newPosition.x;
+                if (!this.checkCollisions(testPosX)) {
+                    this.camera.position.x = newPosition.x;
+                }
+                
+                const testPosZ = this.camera.position.clone();
+                testPosZ.z = newPosition.z;
+                if (!this.checkCollisions(testPosZ)) {
+                    this.camera.position.z = newPosition.z;
+                }
+
                 this.camera.position.y += this.linearVelocity.y * delta;
                 this.camera.rotation.y -= this.angularVelocity.y * delta;
                 
-                this.camera.position.x = Math.max(-LIBRARY_WIDTH / 2 + 4, Math.min(LIBRARY_WIDTH / 2 - 4, this.camera.position.x));
-                this.camera.position.z = Math.max(-LIBRARY_DEPTH / 2 + 4, Math.min(LIBRARY_DEPTH / 2 - 4, this.camera.position.z));
-                this.camera.position.y = Math.max(0.8, Math.min(8.0, this.camera.position.y));
+                this.camera.position.y = Math.max(0.8, Math.min(10.0, this.camera.position.y));
             }
-        }
-
-        function setupMouseInteraction() {
-            renderer.domElement.addEventListener('click', onMouseClick, false);
-        }
-
-        function onMouseClick(event) {
-            if (document.pointerLockElement === renderer.domElement) return;
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(bookMeshes, true);
-
-            if (intersects.length > 0) {
-                const clickedBook = intersects[0].object.userData.book;
-                if (clickedBook) {
-                    showBookDetails(clickedBook);
-                }
-            }
-        }
-
-        function showBookDetails(book) {
-            document.getElementById('modalTitle').textContent = book.title;
-            document.getElementById('modalAuthor').textContent = book.author;
-            document.getElementById('modalCategory').textContent = book.category;
-            document.getElementById('modalStatus').textContent = book.status;
-            document.getElementById('modalOwnership').textContent = book.ownership;
-            document.getElementById('modalDate').textContent = book.dateCompleted || 'Not completed';
-            document.getElementById('modalSummary').textContent = book.summary;
-            document.getElementById('modalBookCover').src = book.customCoverUrl;
-            modal.style.display = 'block';
         }
 
         // =============================================================================
-        // SCENE & ENVIRONMENT CREATION
+        // UTILITY FUNCTIONS
+        // =============================================================================
+        function createMarbleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#d0d0d5');
+            gradient.addColorStop(0.3, '#c0c0c8');
+            gradient.addColorStop(0.7, '#b0b0b8');
+            gradient.addColorStop(1, '#c8c8d0');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+                ctx.quadraticCurveTo(
+                    Math.random() * canvas.width, Math.random() * canvas.height,
+                    Math.random() * canvas.width, Math.random() * canvas.height
+                );
+                ctx.stroke();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(4, 4);
+            return texture;
+        }
+
+        function createColumn(x, y, z, material) {
+            const columnGroup = new THREE.Group();
+            
+            const shaftGeometry = new THREE.CylinderGeometry(0.8, 0.8, LIBRARY_HEIGHT - 2, 16);
+            const shaft = new THREE.Mesh(shaftGeometry, material);
+            shaft.position.y = y - 1;
+            shaft.castShadow = true;
+            columnGroup.add(shaft);
+
+            const baseGeometry = new THREE.CylinderGeometry(1.2, 1.2, 1, 16);
+            const base = new THREE.Mesh(baseGeometry, material);
+            base.position.y = 0.5;
+            base.castShadow = true;
+            columnGroup.add(base);
+
+            const capitalGeometry = new THREE.CylinderGeometry(1.2, 0.8, 1, 16);
+            const capital = new THREE.Mesh(capitalGeometry, material);
+            capital.position.y = LIBRARY_HEIGHT - 1.5;
+            capital.castShadow = true;
+            columnGroup.add(capital);
+
+            columnGroup.position.set(x, 0, z);
+            return columnGroup;
+        }
+
+        // =============================================================================
+        // SCENE CREATION FUNCTIONS
         // =============================================================================
         function createLighting() {
-            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443322, 0.6);
+            const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x443322, 0.4);
             scene.add(hemisphereLight);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 20, 5);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            directionalLight.position.set(20, 30, 10);
             directionalLight.castShadow = true;
-            directionalLight.shadow.mapSize.width = 2048;
-            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.mapSize.width = 4096;
+            directionalLight.shadow.mapSize.height = 4096;
             directionalLight.shadow.camera.near = 0.5;
-            directionalLight.shadow.camera.far = 50;
-            directionalLight.shadow.camera.left = -25;
-            directionalLight.shadow.camera.right = 25;
-            directionalLight.shadow.camera.top = 25;
-            directionalLight.shadow.camera.bottom = -25;
+            directionalLight.shadow.camera.far = 100;
+            directionalLight.shadow.camera.left = -50;
+            directionalLight.shadow.camera.right = 50;
+            directionalLight.shadow.camera.top = 50;
+            directionalLight.shadow.camera.bottom = -50;
             scene.add(directionalLight);
+
+            const warmLight = new THREE.PointLight(0xffd700, 0.8, 30);
+            warmLight.position.set(0, 8, 0);
+            warmLight.castShadow = true;
+            scene.add(warmLight);
         }
 
-        function createLibraryEnvironment() {
-            const floorGeometry = new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_DEPTH);
-            const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x3d2914 });
+        function createMansionEnvironment() {
+            // Elegant marble floor
+            const floorGeometry = new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_DEPTH, 20, 20);
+            const marbleTexture = createMarbleTexture();
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                map: marbleTexture,
+                roughness: 0.1,
+                metalness: 0.1
+            });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
             scene.add(floor);
 
-            const wallMaterial = new THREE.MeshLambertMaterial({ color: 0x2a2a3e });
+            // Grass areas (keeping the interior grass areas)
+            createGrassAreas();
+            // Mansion walls
+            createMansionWalls();
+            // Ornate ceiling
+            createOrnateCompartmentCeiling();
+            // Japanese garden outside front wall
+            createJapaneseGarden();
+        }
 
+        function createGrassAreas() {
+            const grassMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            
+            // Keep only the interior grass patches
+            const grassPatches = []; // Keeping this function in case I want to add interior grass patches later
+
+            grassPatches.forEach(patch => {
+                const grassGeometry = new THREE.PlaneGeometry(patch.size[0], patch.size[1]);
+                const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+                grass.rotation.x = -Math.PI / 2;
+                grass.position.set(patch.pos[0], patch.pos[1], patch.pos[2]);
+                grass.receiveShadow = true;
+                scene.add(grass);
+            });
+        }
+
+        function createJapaneseGarden() {
+            // Create the garden area outside the front wall
+            const gardenGroup = new THREE.Group();
+            
+            // Japanese grass base - larger area
+            const japaneseGrassMaterial = new THREE.MeshLambertMaterial({ color: 0x2d5016 });
+            const japaneseGrassGeometry = new THREE.PlaneGeometry(60, 30);
+            const japaneseGrass = new THREE.Mesh(japaneseGrassGeometry, japaneseGrassMaterial);
+            japaneseGrass.rotation.x = -Math.PI / 2;
+            japaneseGrass.position.set(0, 0.01, 45);
+            japaneseGrass.receiveShadow = true;
+            gardenGroup.add(japaneseGrass);
+
+            // Traditional Japanese materials
+            const stoneMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x696969,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            
+            const waterMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x1e3a8a,
+                roughness: 0.1,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const bambooMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8FBC8F,
+                roughness: 0.6,
+                metalness: 0.1
+            });
+
+            const woodMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+
+            // Create the central pond
+            const pondGeometry = new THREE.CylinderGeometry(6, 6, 0.3, 32);
+            const pond = new THREE.Mesh(pondGeometry, waterMaterial);
+            pond.position.set(0, 0.15, 40);
+            pond.receiveShadow = true;
+            gardenGroup.add(pond);
+
+            // Pond border stones
+            for (let i = 0; i < 24; i++) {
+                const angle = (i / 24) * Math.PI * 2;
+                const stoneGeometry = new THREE.BoxGeometry(
+                    0.3 + Math.random() * 0.2,
+                    0.2 + Math.random() * 0.1,
+                    0.5 + Math.random() * 0.3
+                );
+                const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+                stone.position.set(
+                    Math.cos(angle) * 6.5,
+                    0.1,
+                    40 + Math.sin(angle) * 6.5
+                );
+                stone.rotation.y = Math.random() * Math.PI * 2;
+                stone.castShadow = true;
+                gardenGroup.add(stone);
+            }
+
+            // Create tall bamboo fountain water feature
+            const fountainGroup = new THREE.Group();
+            
+            // Bamboo spout (tall and elegant)
+            const bambooSpoutGeometry = new THREE.CylinderGeometry(0.15, 0.2, 8, 12);
+            const bambooSpout = new THREE.Mesh(bambooSpoutGeometry, bambooMaterial);
+            bambooSpout.position.set(0, 4, 0);
+            bambooSpout.castShadow = true;
+            fountainGroup.add(bambooSpout);
+
+            // Bamboo segments (traditional look)
+            for (let i = 0; i < 4; i++) {
+                const segmentGeometry = new THREE.TorusGeometry(0.18, 0.03, 8, 16);
+                const segment = new THREE.Mesh(segmentGeometry, woodMaterial);
+                segment.position.set(0, 1 + i * 2, 0);
+                segment.rotation.x = Math.PI / 2;
+                fountainGroup.add(segment);
+            }
+
+            // Water spout effect
+            const waterSpoutGeometry = new THREE.CylinderGeometry(0.02, 0.05, 3, 8);
+            const waterSpout = new THREE.Mesh(waterSpoutGeometry, waterMaterial);
+            waterSpout.position.set(0, 9.5, 0);
+            fountainGroup.add(waterSpout);
+
+            // Stone base for bamboo fountain
+            const fountainBaseGeometry = new THREE.CylinderGeometry(1, 1, 0.5, 16);
+            const fountainBase = new THREE.Mesh(fountainBaseGeometry, stoneMaterial);
+            fountainBase.position.set(0, 0.25, 0);
+            fountainBase.castShadow = true;
+            fountainGroup.add(fountainBase);
+
+            fountainGroup.position.set(5, 0, 40);
+            gardenGroup.add(fountainGroup);
+            collisionMeshes.push(fountainGroup);
+
+            // Create tall trees around the garden
+            const treeTrunkMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8B4513,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            
+            const treeLeavesMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x228B22
+            });
+
+            // Japanese Maple trees (shorter, broader)
+            const maplePositions = [
+                { x: -15, z: 35 },
+                { x: 15, z: 35 },
+                { x: -12, z: 45 },
+                { x: 12, z: 45 }
+            ];
+
+            maplePositions.forEach(pos => {
+                const mapleGroup = new THREE.Group();
+                
+                // Trunk
+                const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 6, 8);
+                const trunk = new THREE.Mesh(trunkGeometry, treeTrunkMaterial);
+                trunk.position.y = 3;
+                trunk.castShadow = true;
+                mapleGroup.add(trunk);
+
+                // Foliage (multiple spheres for natural look)
+                for (let i = 0; i < 5; i++) {
+                    const foliageGeometry = new THREE.SphereGeometry(2 + Math.random(), 8, 8);
+                    const foliage = new THREE.Mesh(foliageGeometry, treeLeavesMaterial);
+                    foliage.position.set(
+                        (Math.random() - 0.5) * 3,
+                        5 + Math.random() * 2,
+                        (Math.random() - 0.5) * 3
+                    );
+                    foliage.castShadow = true;
+                    mapleGroup.add(foliage);
+                }
+
+                mapleGroup.position.set(pos.x, 0, pos.z);
+                gardenGroup.add(mapleGroup);
+                collisionMeshes.push(mapleGroup);
+            });
+
+            // Tall Pine/Cedar trees
+            const tallTreePositions = [
+                { x: -18, z: 35 },
+                { x: 18, z: 35 },
+                { x: -20, z: 50 },
+                { x: 20, z: 50 },
+                { x: 0, z: 52 },
+                { x: -8, z: 33 },
+                { x: 8, z: 33 }
+            ];
+
+            tallTreePositions.forEach(pos => {
+                const tallTreeGroup = new THREE.Group();
+                
+                // Tall trunk
+                const tallTrunkGeometry = new THREE.CylinderGeometry(0.4, 0.6, 15, 8);
+                const tallTrunk = new THREE.Mesh(tallTrunkGeometry, treeTrunkMaterial);
+                tallTrunk.position.y = 7.5;
+                tallTrunk.castShadow = true;
+                tallTreeGroup.add(tallTrunk);
+
+                // Conical foliage layers
+                for (let layer = 0; layer < 4; layer++) {
+                    const radius = 3 - layer * 0.5;
+                    const height = 4 - layer * 0.3;
+                    const coneGeometry = new THREE.ConeGeometry(radius, height, 8);
+                    const cone = new THREE.Mesh(coneGeometry, treeLeavesMaterial);
+                    cone.position.y = 10 + layer * 2.5;
+                    cone.castShadow = true;
+                    tallTreeGroup.add(cone);
+                }
+
+                tallTreeGroup.position.set(pos.x, 0, pos.z);
+                gardenGroup.add(tallTreeGroup);
+                collisionMeshes.push(tallTreeGroup);
+            });
+
+            // Traditional Japanese stepping stones leading to the pond
+            const steppingStonePositions = [
+                { x: 0, z: 32 },
+                { x: -1, z: 34 },
+                { x: 1, z: 36 },
+                { x: -0.5, z: 38 }
+            ];
+
+            steppingStonePositions.forEach(pos => {
+                const stoneGeometry = new THREE.CylinderGeometry(0.8, 0.9, 0.2, 8);
+                const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+                stone.position.set(pos.x, 0.1, pos.z);
+                stone.castShadow = true;
+                gardenGroup.add(stone);
+            });
+
+            // Add some ornamental rocks around the garden
+            const ornamentalRockPositions = [
+                { x: -10, z: 38 },
+                { x: 10, z: 42 },
+                { x: -5, z: 48 },
+                { x: 7, z: 35 }
+            ];
+
+            ornamentalRockPositions.forEach(pos => {
+                const rockGeometry = new THREE.SphereGeometry(1 + Math.random() * 0.5, 8, 8);
+                const rock = new THREE.Mesh(rockGeometry, stoneMaterial);
+                rock.position.set(pos.x, 0.5, pos.z);
+                rock.scale.y = 0.6; // Flatten slightly
+                rock.castShadow = true;
+                gardenGroup.add(rock);
+                collisionMeshes.push(rock);
+            });
+
+            // Add bamboo plants around the perimeter
+            const bambooPositions = [
+                { x: -16, z: 42 },
+                { x: 16, z: 38 },
+                { x: -14, z: 48 },
+                { x: 14, z: 32 }
+            ];
+
+            bambooPositions.forEach(pos => {
+                const bambooClusterGroup = new THREE.Group();
+                
+                for (let i = 0; i < 5; i++) {
+                    const bambooHeight = 4 + Math.random() * 3;
+                    const bambooStalkGeometry = new THREE.CylinderGeometry(0.08, 0.12, bambooHeight, 8);
+                    const bambooStalk = new THREE.Mesh(bambooStalkGeometry, bambooMaterial);
+                    bambooStalk.position.set(
+                        (Math.random() - 0.5) * 2,
+                        bambooHeight / 2,
+                        (Math.random() - 0.5) * 2
+                    );
+                    bambooStalk.castShadow = true;
+                    bambooClusterGroup.add(bambooStalk);
+
+                    // Add bamboo segments
+                    for (let j = 1; j < bambooHeight; j += 1.5) {
+                        const segmentGeometry = new THREE.TorusGeometry(0.1, 0.02, 6, 12);
+                        const segment = new THREE.Mesh(segmentGeometry, woodMaterial);
+                        segment.position.set(
+                            bambooStalk.position.x,
+                            j,
+                            bambooStalk.position.z
+                        );
+                        segment.rotation.x = Math.PI / 2;
+                        bambooClusterGroup.add(segment);
+                    }
+                }
+
+                bambooClusterGroup.position.set(pos.x, 0, pos.z);
+                gardenGroup.add(bambooClusterGroup);
+                collisionMeshes.push(bambooClusterGroup);
+            });
+
+            // Add subtle lighting for the garden
+            const gardenLight = new THREE.PointLight(0x87CEEB, 0.5, 25);
+            gardenLight.position.set(0, 8, 40);
+            gardenLight.castShadow = true;
+            gardenGroup.add(gardenLight);
+
+            scene.add(gardenGroup);
+        }
+
+        function createMansionWalls() {
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xf5f5dc,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+
+            const columnMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff,
+                roughness: 0.2,
+                metalness: 0.1
+            });
+
+            // Walls
             const backWall = new THREE.Mesh(new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_HEIGHT), wallMaterial);
             backWall.position.set(0, LIBRARY_HEIGHT / 2, -LIBRARY_DEPTH / 2);
             backWall.receiveShadow = true;
             scene.add(backWall);
+
+            // Add columns
+            for (let i = -2; i <= 2; i++) {
+                const column = createColumn(i * 12, LIBRARY_HEIGHT / 2, -LIBRARY_DEPTH / 2 + 1, columnMaterial);
+                scene.add(column);
+                collisionMeshes.push(column);
+            }
 
             const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(LIBRARY_DEPTH, LIBRARY_HEIGHT), wallMaterial);
             leftWall.position.set(-LIBRARY_WIDTH / 2, LIBRARY_HEIGHT / 2, 0);
@@ -4931,6 +5153,47 @@
             rightWall.rotation.y = -Math.PI / 2;
             rightWall.receiveShadow = true;
             scene.add(rightWall);
+            // Add front wall with large window
+            createFrontWallWithWindow();
+        }
+
+        function createOrnateCompartmentCeiling() {
+            const ceilingMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xfaf0e6,
+                roughness: 0.4,
+                metalness: 0.1
+            });
+
+            const ceilingGeometry = new THREE.PlaneGeometry(LIBRARY_WIDTH, LIBRARY_DEPTH);
+            const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = LIBRARY_HEIGHT;
+            scene.add(ceiling);
+
+            const beamMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+            
+            for (let i = -2; i <= 2; i++) {
+                const beamGeometry = new THREE.BoxGeometry(LIBRARY_WIDTH, 0.5, 1);
+                const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                beam.position.set(0, LIBRARY_HEIGHT - 0.25, i * 12);
+                beam.castShadow = true;
+                scene.add(beam);
+            }
+
+            for (let i = -2; i <= 2; i++) {
+                const beamGeometry = new THREE.BoxGeometry(1, 0.5, LIBRARY_DEPTH);
+                const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                beam.position.set(i * 12, LIBRARY_HEIGHT - 0.25, 0);
+                beam.castShadow = true;
+                scene.add(beam);
+            }
+
+            const medallionGeometry = new THREE.CylinderGeometry(3, 3, 0.3, 32);
+            const medallionMaterial = new THREE.MeshStandardMaterial({ color: 0xd4af37 });
+            const medallion = new THREE.Mesh(medallionGeometry, medallionMaterial);
+            medallion.position.set(0, LIBRARY_HEIGHT - 0.4, 0);
+            medallion.castShadow = true;
+            scene.add(medallion);
         }
 
         function createBookShelves() {
@@ -4938,15 +5201,18 @@
             const totalBookcasesNeeded = Math.ceil(books.length / BOOKS_PER_BOOKCASE);
 
             const bookcaseLayout = [
+                // Back wall (3 bookcases)
                 { pos: new THREE.Vector3(-(BOOKCASE_WIDTH + BOOKCASE_SPACING), 0, -18), rotY: 0 },
                 { pos: new THREE.Vector3(0, 0, -18), rotY: 0 },
                 { pos: new THREE.Vector3((BOOKCASE_WIDTH + BOOKCASE_SPACING), 0, -18), rotY: 0 },
-                { pos: new THREE.Vector3(-18, 0, -(BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: Math.PI / 2 },
-                { pos: new THREE.Vector3(-18, 0, 0), rotY: Math.PI / 2 },
-                { pos: new THREE.Vector3(-18, 0, (BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: Math.PI / 2 },
-                { pos: new THREE.Vector3(18, 0, -(BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: -Math.PI / 2 },
-                { pos: new THREE.Vector3(18, 0, 0), rotY: -Math.PI / 2 },
-                { pos: new THREE.Vector3(18, 0, (BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: -Math.PI / 2 },
+                // Left wall (3 bookcases)
+                { pos: new THREE.Vector3(-28, 0, -(BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: Math.PI / 2 },
+                { pos: new THREE.Vector3(-28, 0, 0), rotY: Math.PI / 2 },
+                { pos: new THREE.Vector3(-28, 0, (BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: Math.PI / 2 },
+                // Right wall (3 bookcases)
+                { pos: new THREE.Vector3(28, 0, -(BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: -Math.PI / 2 },
+                { pos: new THREE.Vector3(28, 0, 0), rotY: -Math.PI / 2 },
+                { pos: new THREE.Vector3(28, 0, (BOOKCASE_WIDTH + BOOKCASE_SPACING)), rotY: -Math.PI / 2 }
             ];
             
             for (let i = 0; i < totalBookcasesNeeded && i < bookcaseLayout.length; i++) {
@@ -4960,24 +5226,37 @@
             const bookcaseGroup = new THREE.Group();
             bookcaseGroup.position.copy(position);
             bookcaseGroup.rotation.y = rotation;
-            const shelfMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
-            const supportMaterial = new THREE.MeshLambertMaterial({ color: 0x5d4d37 });
+            
+            const shelfMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8B4513,
+                roughness: 0.7,
+                metalness: 0.1
+            });
+            const supportMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x5d4d37,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            
             const supportGeometry = new THREE.BoxGeometry(SUPPORT_WIDTH, BOOKCASE_HEIGHT, SHELF_DEPTH);
             const leftSupport = new THREE.Mesh(supportGeometry, supportMaterial);
             leftSupport.position.set(-BOOKCASE_WIDTH / 2 + SUPPORT_WIDTH / 2, BOOKCASE_HEIGHT / 2, 0);
             leftSupport.castShadow = true;
             bookcaseGroup.add(leftSupport);
+            
             const rightSupport = new THREE.Mesh(supportGeometry, supportMaterial);
             rightSupport.position.set(BOOKCASE_WIDTH / 2 - SUPPORT_WIDTH / 2, BOOKCASE_HEIGHT / 2, 0);
             rightSupport.castShadow = true;
             bookcaseGroup.add(rightSupport);
+            
             for (let shelfLevel = 0; shelfLevel < SHELVES_PER_BOOKCASE; shelfLevel++) {
                 const yPosition = SHELF_BASE_Y + shelfLevel * SHELF_SPACING_Y;
-                const shelfGeometry = new THREE.BoxGeometry(BOOKCASE_WIDTH, SHELF_THICKNESS, SHELF_DEPTH);
+                const shelfGeometry = new THREE.BoxGeometry(BOOKCASE_WIDTH - .6, SHELF_THICKNESS, SHELF_DEPTH);
                 const shelf = new THREE.Mesh(shelfGeometry, shelfMaterial);
                 shelf.position.set(0, yPosition, 0);
                 shelf.castShadow = true;
                 bookcaseGroup.add(shelf);
+                
                 for (let bookPos = 0; bookPos < BOOKS_PER_SHELF; bookPos++) {
                     const currentBookIndex = startBookIndex + shelfLevel * BOOKS_PER_SHELF + bookPos;
                     if (currentBookIndex >= books.length) break;
@@ -4988,93 +5267,630 @@
                     createBookCover(book, bookX, bookY, bookZ, bookcaseGroup);
                 }
             }
-            scene.add(bookcaseGroup);
-        }
-
-        function createLibraryFurniture() {
-            const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x3d2914, roughness: 0.8, metalness: 0.2 });
-            const plantPotMaterial = new THREE.MeshStandardMaterial({ color: 0x964B00, roughness: 0.9 });
-            const plantLeavesMaterial = new THREE.MeshStandardMaterial({ color: 0x006400, roughness: 1.0 });
-
-            const createPottedPlant = (x, z) => {
-                const plantGroup = new THREE.Group();
-                const potGeometry = new THREE.CylinderGeometry(0.5, 0.4, 1, 16);
-                const pot = new THREE.Mesh(potGeometry, plantPotMaterial);
-                pot.castShadow = true;
-                plantGroup.add(pot);
-                const leavesGeometry = new THREE.IcosahedronGeometry(0.8, 1);
-                const leaves = new THREE.Mesh(leavesGeometry, plantLeavesMaterial);
-                leaves.position.y = 1.0;
-                leaves.castShadow = true;
-                plantGroup.add(leaves);
-                plantGroup.position.set(x, 0.5, z);
-                scene.add(plantGroup);
-            };
-
-            const createTableAndChairs = (x, z) => {
-                const tableGroup = new THREE.Group();
-                const tableTopGeo = new THREE.CylinderGeometry(2, 2, 0.1, 32);
-                const tableTop = new THREE.Mesh(tableTopGeo, darkWoodMaterial);
-                tableTop.position.y = 1.0;
-                tableTop.castShadow = true;
-                tableTop.receiveShadow = true;
-                tableGroup.add(tableTop);
-                const tableBaseGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.0, 16);
-                const tableBase = new THREE.Mesh(tableBaseGeo, darkWoodMaterial);
-                tableBase.position.y = 0.5;
-                tableBase.castShadow = true;
-                tableGroup.add(tableBase);
-                const lampBaseGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 16);
-                const lampBase = new THREE.Mesh(lampBaseGeo, darkWoodMaterial);
-                lampBase.position.y = 1.05;
-                tableGroup.add(lampBase);
-                const lampStemGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 16);
-                const lampStem = new THREE.Mesh(lampStemGeo, darkWoodMaterial);
-                lampStem.position.y = 1.3;
-                tableGroup.add(lampStem);
-                const lampShadeGeo = new THREE.CylinderGeometry(0.1, 0.3, 0.3, 16, 1, true);
-                const lampShadeMat = new THREE.MeshStandardMaterial({ color: 0xfff8e1, side: THREE.DoubleSide });
-                const lampShade = new THREE.Mesh(lampShadeGeo, lampShadeMat);
-                lampShade.position.y = 1.6;
-                tableGroup.add(lampShade);
-                const lampLight = new THREE.PointLight(0xffd700, 1.2, 8);
-                lampLight.position.set(0, 1.7, 0);
-                lampLight.castShadow = true;
-                tableGroup.add(lampLight);
-                const chairSeatGeo = new THREE.BoxGeometry(0.5, 0.1, 0.5);
-                const chairBackGeo = new THREE.BoxGeometry(0.5, 0.6, 0.05);
-                for (let i = 0; i < 4; i++) {
-                    const angle = (i / 4) * Math.PI * 2;
-                    const chair = new THREE.Group();
-                    const seat = new THREE.Mesh(chairSeatGeo, darkWoodMaterial);
-                    seat.position.y = 0.5;
-                    seat.castShadow = true;
-                    chair.add(seat);
-                    const back = new THREE.Mesh(chairBackGeo, darkWoodMaterial);
-                    back.position.y = 0.8;
-                    back.position.z = -0.225;
-                    back.castShadow = true;
-                    chair.add(back);
-                    chair.position.set(Math.cos(angle) * 1.5, 0, Math.sin(angle) * 1.5);
-                    chair.lookAt(tableGroup.position);
-                    tableGroup.add(chair);
-                }
-                tableGroup.position.set(x, 0, z);
-                scene.add(tableGroup);
-            };
-
-            createTableAndChairs(-5, 0);
-            createTableAndChairs(5, 0);
             
-            const gapCenterOffset = (BOOKCASE_WIDTH + BOOKCASE_SPACING) / 2;
-            const plantOffsetFromWall = SHELF_DEPTH / 2 + 0.5;
-            createPottedPlant(-gapCenterOffset, -18 + plantOffsetFromWall);
-            createPottedPlant(gapCenterOffset, -18 + plantOffsetFromWall);
-            createPottedPlant(-18 + plantOffsetFromWall, -gapCenterOffset);
-            createPottedPlant(-18 + plantOffsetFromWall, gapCenterOffset);
-            createPottedPlant(18 - plantOffsetFromWall, -gapCenterOffset);
-            createPottedPlant(18 - plantOffsetFromWall, gapCenterOffset);
+            scene.add(bookcaseGroup);
+            collisionMeshes.push(bookcaseGroup);
         }
+
+        function createWaterFeatures() {
+            createFountain(0, 0, 0);
+            createWaterfall(-25, 0, -25);
+        }
+
+        function createFountain(x, y, z) {
+            const fountainGroup = new THREE.Group();
+            
+            const stoneMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x696969,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const waterMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4169e1,
+                roughness: 0.1,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            const baseGeometry = new THREE.CylinderGeometry(4, 4, 0.5, 32);
+            const base = new THREE.Mesh(baseGeometry, stoneMaterial);
+            base.position.y = 0.25;
+            base.castShadow = true;
+            fountainGroup.add(base);
+
+            const poolGeometry = new THREE.CylinderGeometry(3.8, 3.8, 0.3, 32);
+            const pool = new THREE.Mesh(poolGeometry, waterMaterial);
+            pool.position.y = 0.45;
+            fountainGroup.add(pool);
+
+            const columnGeometry = new THREE.CylinderGeometry(0.5, 0.5, 3, 16);
+            const column = new THREE.Mesh(columnGeometry, stoneMaterial);
+            column.position.y = 2;
+            column.castShadow = true;
+            fountainGroup.add(column);
+
+            const topGeometry = new THREE.SphereGeometry(0.8, 16, 16);
+            const top = new THREE.Mesh(topGeometry, stoneMaterial);
+            top.position.y = 3.8;
+            top.castShadow = true;
+            fountainGroup.add(top);
+
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const jetGeometry = new THREE.CylinderGeometry(0.02, 0.02, 6, 8);
+                const jet = new THREE.Mesh(jetGeometry, waterMaterial);
+                jet.position.set(
+                    Math.cos(angle) * 0.3,
+                    4.5,
+                    Math.sin(angle) * 0.3
+                );
+                fountainGroup.add(jet);
+            }
+
+            const fountainLight = new THREE.PointLight(0x87ceeb, 1.5, 15);
+            fountainLight.position.set(0, 2, 0);
+            fountainGroup.add(fountainLight);
+
+            fountainGroup.position.set(x, y, z);
+            scene.add(fountainGroup);
+            collisionMeshes.push(fountainGroup);
+        }
+
+        function createWaterfall(x, y, z) {
+            const waterfallGroup = new THREE.Group();
+            
+            const rockMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x654321,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            const waterMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4169e1,
+                roughness: 0.1,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.6
+            });
+
+            const rockGeometry = new THREE.BoxGeometry(8, 6, 4);
+            const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+            rock.position.y = 3;
+            rock.castShadow = true;
+            waterfallGroup.add(rock);
+
+            const cascadeGeometry = new THREE.PlaneGeometry(2, 6);
+            const cascade = new THREE.Mesh(cascadeGeometry, waterMaterial);
+            cascade.position.set(0, 3, 2.1);
+            waterfallGroup.add(cascade);
+
+            const poolGeometry = new THREE.CylinderGeometry(3, 3, 0.5, 32);
+            const pool = new THREE.Mesh(poolGeometry, waterMaterial);
+            pool.position.y = 0.25;
+            waterfallGroup.add(pool);
+
+            for (let i = 0; i < 20; i++) {
+                const mistGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const mistMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const mist = new THREE.Mesh(mistGeometry, mistMaterial);
+                mist.position.set(
+                    (Math.random() - 0.5) * 4,
+                    Math.random() * 4 + 1,
+                    2 + (Math.random() - 0.5) * 2
+                );
+                waterfallGroup.add(mist);
+            }
+
+            waterfallGroup.position.set(x, y, z);
+            scene.add(waterfallGroup);
+            collisionMeshes.push(waterfallGroup);
+        }
+
+        function createLuxuryFurniture() {
+            const mahoganyMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x654321,
+                roughness: 0.3,
+                metalness: 0.1
+            });
+            const velvetMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8b0000,
+                roughness: 0.9,
+                metalness: 0.0
+            });
+
+            // Luxury seating areas - moved more toward center
+            createLuxurySeatingArea(-8, 0, 15, mahoganyMaterial, velvetMaterial);
+            createLuxurySeatingArea(8, 0, 15, mahoganyMaterial, velvetMaterial);
+
+            // Crystal chandeliers
+            createChandelier(0, 9, 0);
+            createChandelier(-20, 9, -10);
+            createChandelier(20, 9, -10);
+            createChandelier(-20, 9, 10);
+            createChandelier(20, 9, 10);
+            // Cherry blossom tree in back right corner
+            createCherryBlossomTree(25, 0, -25);
+            // Progress tracking poster
+            createProgressTracker();
+            createFanonQuote();
+            createRealTimeClock();
+        }
+
+        function createLuxurySeatingArea(x, y, z, frameMaterial, cushionMaterial) {
+            const sofaGroup = new THREE.Group();
+            
+            const frameGeometry = new THREE.BoxGeometry(4, 0.5, 2);
+            const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+            frame.position.y = 0.25;
+            frame.castShadow = true;
+            sofaGroup.add(frame);
+
+            const cushionGeometry = new THREE.BoxGeometry(3.8, 0.6, 1.8);
+            const cushion = new THREE.Mesh(cushionGeometry, cushionMaterial);
+            cushion.position.y = 0.8;
+            cushion.castShadow = true;
+            sofaGroup.add(cushion);
+
+            const backGeometry = new THREE.BoxGeometry(4, 1.5, 0.3);
+            const back = new THREE.Mesh(backGeometry, cushionMaterial);
+            back.position.set(0, 1.25, -0.85);
+            back.castShadow = true;
+            sofaGroup.add(back);
+
+            sofaGroup.position.set(x, y, z);
+            scene.add(sofaGroup);
+            collisionMeshes.push(sofaGroup);
+
+            const tableGroup = new THREE.Group();
+            const tableTopGeometry = new THREE.CylinderGeometry(1.5, 1.5, 0.1, 32);
+            const tableTop = new THREE.Mesh(tableTopGeometry, frameMaterial);
+            tableTop.position.y = 0.6;
+            tableTop.castShadow = true;
+            tableGroup.add(tableTop);
+
+            const tableBaseGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 16);
+            const tableBase = new THREE.Mesh(tableBaseGeometry, frameMaterial);
+            tableBase.position.y = 0.3;
+            tableBase.castShadow = true;
+            tableGroup.add(tableBase);
+
+            tableGroup.position.set(x, y, z + 3);
+            scene.add(tableGroup);
+            collisionMeshes.push(tableGroup);
+        }
+
+        function createChandelier(x, y, z) {
+            const chandelierGroup = new THREE.Group();
+            
+            const goldMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xffd700,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const crystalMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff,
+                roughness: 0.1,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const chainGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2, 8);
+            const chain = new THREE.Mesh(chainGeometry, goldMaterial);
+            chain.position.y = 1;
+            chandelierGroup.add(chain);
+
+            const frameGeometry = new THREE.TorusGeometry(1.5, 0.1, 8, 32);
+            const frame = new THREE.Mesh(frameGeometry, goldMaterial);
+            chandelierGroup.add(frame);
+
+            for (let i = 0; i < 16; i++) {
+                const angle = (i / 16) * Math.PI * 2;
+                const crystalGeometry = new THREE.ConeGeometry(0.05, 0.3, 6);
+                const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
+                crystal.position.set(
+                    Math.cos(angle) * 1.5,
+                    -0.3,
+                    Math.sin(angle) * 1.5
+                );
+                chandelierGroup.add(crystal);
+            }
+
+            const light = new THREE.PointLight(0xffffff, 1.0, 20);
+            light.position.set(0, 0, 0);
+            light.castShadow = true;
+            chandelierGroup.add(light);
+
+            chandelierGroup.position.set(x, y, z);
+            scene.add(chandelierGroup);
+        }
+
+function createCherryBlossomTree(x, y, z) {
+    const cherryTreeGroup = new THREE.Group();
+    
+    // Tree trunk material
+    const trunkMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x654321,
+        roughness: 0.8,
+        metalness: 0.1
+    });
+    
+    // Cherry blossom material (pink flowers)
+    const blossomMaterial = new THREE.MeshLambertMaterial({ 
+        color: 0xFFB6C1
+    });
+    
+    // Tree trunk - keep it under ceiling height
+    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 8, 8);
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 4;
+    trunk.castShadow = true;
+    cherryTreeGroup.add(trunk);
+
+    // Create multiple blossom clusters
+    for (let i = 0; i < 8; i++) {
+        const blossomGeometry = new THREE.SphereGeometry(1.2 + Math.random() * 0.5, 8, 8);
+        const blossom = new THREE.Mesh(blossomGeometry, blossomMaterial);
+        blossom.position.set(
+            (Math.random() - 0.5) * 4,
+            6 + Math.random() * 2,
+            (Math.random() - 0.5) * 4
+        );
+        blossom.castShadow = true;
+        cherryTreeGroup.add(blossom);
+    }
+
+    cherryTreeGroup.position.set(x, y, z);
+    scene.add(cherryTreeGroup);
+    collisionMeshes.push(cherryTreeGroup);
+}
+
+function createProgressTracker() {
+    const posterGroup = new THREE.Group();
+    
+    // Create poster background
+    const posterGeometry = new THREE.PlaneGeometry(8, 10);
+    const posterMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const poster = new THREE.Mesh(posterGeometry, posterMaterial);
+    poster.position.set(0, 0, 0.05);
+    poster.castShadow = true;
+    posterGroup.add(poster);
+    
+    // Create poster frame
+    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+    
+    // Frame pieces
+    const topFrameGeometry = new THREE.BoxGeometry(8.4, 0.2, 0.1);
+    const topFrame = new THREE.Mesh(topFrameGeometry, frameMaterial);
+    topFrame.position.set(0, 5.1, 0.1);
+    posterGroup.add(topFrame);
+    
+    const bottomFrameGeometry = new THREE.BoxGeometry(8.4, 0.2, 0.1);
+    const bottomFrame = new THREE.Mesh(bottomFrameGeometry, frameMaterial);
+    bottomFrame.position.set(0, -5.1, 0.1);
+    posterGroup.add(bottomFrame);
+    
+    const leftFrameGeometry = new THREE.BoxGeometry(0.2, 10.4, 0.1);
+    const leftFrame = new THREE.Mesh(leftFrameGeometry, frameMaterial);
+    leftFrame.position.set(-4.1, 0, 0.1);
+    posterGroup.add(leftFrame);
+    
+    const rightFrameGeometry = new THREE.BoxGeometry(0.2, 10.4, 0.1);
+    const rightFrame = new THREE.Mesh(rightFrameGeometry, frameMaterial);
+    rightFrame.position.set(4.1, 0, 0.1);
+    posterGroup.add(rightFrame);
+    
+    // Calculate progress
+    const startDate = new Date('2020-09-27');
+    const endDate = new Date('2039-11-26');
+    const currentDate = new Date();
+    
+    const totalWeeks = Math.ceil((endDate - startDate) / (7 * 24 * 60 * 60 * 1000));
+    const weeksElapsed = Math.ceil((currentDate - startDate) / (7 * 24 * 60 * 60 * 1000));
+    const weekProgress = Math.max(0, Math.min(1, weeksElapsed / totalWeeks));
+    
+    const booksRead = books.filter(book => book.status === "Finished").length;
+    const bookProgress = booksRead / 1000;
+    
+    // Create progress bars with different colors
+    const booksProgressMaterial = new THREE.MeshStandardMaterial({ color: 0x4CAF50 }); // Green for books
+    const timeProgressMaterial = new THREE.MeshStandardMaterial({ color: 0x9C27B0 }); // Purple for time
+    const progressBarBgMaterial = new THREE.MeshStandardMaterial({ color: 0xE0E0E0 });
+    
+    // Books progress bar background
+    const booksBgGeometry = new THREE.PlaneGeometry(6, 0.6);
+    const booksBg = new THREE.Mesh(booksBgGeometry, progressBarBgMaterial);
+    booksBg.position.set(0, 1, 0.09);
+    posterGroup.add(booksBg);
+    
+    // Books progress bar fill
+    const booksProgressGeometry = new THREE.PlaneGeometry(6 * bookProgress, 0.6);
+    const booksProgressBar = new THREE.Mesh(booksProgressGeometry, booksProgressMaterial);
+    booksProgressBar.position.set(-3 + (3 * bookProgress), 1, 0.10);
+    posterGroup.add(booksProgressBar);
+    
+    // Time progress bar background
+    const timeBgGeometry = new THREE.PlaneGeometry(6, 0.6);
+    const timeBg = new THREE.Mesh(timeBgGeometry, progressBarBgMaterial);
+    timeBg.position.set(0, -2, 0.09);
+    posterGroup.add(timeBg);
+    
+    // Time progress bar fill
+    const timeProgressGeometry = new THREE.PlaneGeometry(6 * weekProgress, 0.6);
+    const timeProgressBar = new THREE.Mesh(timeProgressGeometry, timeProgressMaterial);
+    timeProgressBar.position.set(-3 + (3 * weekProgress), -2, 0.10);
+    posterGroup.add(timeProgressBar);
+    
+    // Create text using canvas texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 2560;
+    const ctx = canvas.getContext('2d');
+    
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Title
+    ctx.fillStyle = '#111111';
+    ctx.font = 'bold 128px Lato, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('1,000 BOOKS IN 1,000 WEEKS', canvas.width / 2, 240);
+
+    // Subtitle
+    ctx.font = 'bold 96px Lato, Arial';
+    ctx.fillText('READING CHALLENGE', canvas.width / 2, 360);
+    
+    // Books section
+    ctx.font = 'bold 96px Lato, Arial';
+    ctx.fillText('BOOKS FINISHED', canvas.width / 2, 720);
+    ctx.font = '80px Lato, Arial';
+    ctx.fillText(`${booksRead} / 1,000 (${(bookProgress * 100).toFixed(1)}%)`, canvas.width / 2, 840);
+    
+    // Time section
+    ctx.font = 'bold 96px Lato, Arial';
+    ctx.fillText('TIME ELAPSED', canvas.width / 2, 1520);
+    ctx.font = '80px Lato, Arial';
+    ctx.fillText(`${weeksElapsed} / 1,000 weeks (${(weekProgress * 100).toFixed(1)}%)`, canvas.width / 2, 1640);
+    
+    // Dates
+    ctx.font = '64px Lato, Arial';
+    ctx.fillText('Start Date: Sept 27, 2020', canvas.width / 2, 2080);
+    ctx.fillText('End Date: Nov 26, 2039', canvas.width / 2, 2180);
+    
+    // Remaining time
+    const weeksRemaining = totalWeeks - weeksElapsed;
+    const yearsRemaining = (weeksRemaining / 52.18).toFixed(1);
+    ctx.fillText(`${weeksRemaining} weeks (${yearsRemaining} years) remaining`, canvas.width / 2, 2320);
+    
+    const textTexture = new THREE.CanvasTexture(canvas);
+    const textMaterial = new THREE.MeshBasicMaterial({ map: textTexture });
+    const textMesh = new THREE.Mesh(posterGeometry, textMaterial);
+    textMesh.position.set(0, 0, 0.08);
+    posterGroup.add(textMesh);
+    
+    // Position the poster on the right wall, near front
+    posterGroup.position.set(29.9, 6, 23);
+    posterGroup.rotation.y = -Math.PI / 2;
+    scene.add(posterGroup);
+}
+
+function createFanonQuote() {
+    const quoteGroup = new THREE.Group();
+    
+    // Create canvas for the graffiti-style text
+    const canvas = document.createElement('canvas');
+    canvas.width = 1536;
+    canvas.height = 768;
+    const ctx = canvas.getContext('2d');
+    
+    // Transparent background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Set up graffiti-style font and color
+    ctx.fillStyle = '#111111';
+    ctx.strokeStyle = '#111111';
+    ctx.lineWidth = 1;
+    
+    // First line: "My final prayer:" (left-justified)
+    ctx.font = 'bold 72px Impact, Arial Black, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('My final prayer:', 75, 180);
+    ctx.strokeText('My final prayer:', 75, 180);
+    
+    // Second line: "O my body, make of me always a man who questions!" (left-justified)
+    ctx.font = 'bold 58px Impact, Arial Black, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('O my body, make of me always a man who questions!', 75, 300);
+    ctx.strokeText('O my body, make of me always a man who questions!', 75, 300);
+    
+    // Third line: "- Frantz Fanon" (right-justified)
+    ctx.font = 'bold 58px Impact, Arial Black, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('- Frantz Fanon', canvas.width - 200, 420);
+    ctx.strokeText('- Frantz Fanon', canvas.width - 200, 420);
+    
+    // Create texture from canvas
+    const textTexture = new THREE.CanvasTexture(canvas);
+    textTexture.flipY = true;
+    textTexture.minFilter = THREE.LinearFilter;
+    textTexture.magFilter = THREE.LinearFilter;
+    textTexture.generateMipmaps = false;
+    textTexture.wrapS = THREE.ClampToEdgeWrapping;
+    textTexture.wrapT = THREE.ClampToEdgeWrapping;
+    
+    // Create plane geometry for the quote
+    const quoteGeometry = new THREE.PlaneGeometry(12, 6);
+    const quoteMaterial = new THREE.MeshLambertMaterial({ 
+        map: textTexture, 
+        transparent: true,
+        alphaTest: 0.1,
+        side: THREE.DoubleSide
+    });
+    
+    const quoteMesh = new THREE.Mesh(quoteGeometry, quoteMaterial);
+    quoteMesh.position.set(0, 0, 0.05);
+    
+    // Add a custom property to identify this as static text
+    quoteMesh.userData.isStaticText = true;
+    
+    quoteGroup.add(quoteMesh);
+    
+    // Position the quote on the back wall, right side, to the left of cherry blossom tree
+    quoteGroup.position.set(18.5, 6, -29.9);
+    quoteGroup.rotation.y = 0;
+    
+    // Mark the entire group as static
+    quoteGroup.userData.isStaticText = true;
+    
+    scene.add(quoteGroup);
+}
+
+function createRealTimeClock() {
+    const clockGroup = new THREE.Group();
+    
+    // Create canvas for the clock display
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    
+    // Function to update clock display
+    function updateClock() {
+        // Clear canvas
+        ctx.fillStyle = '#2a2a3e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add border
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+        
+        // Get current time
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { 
+            hour12: true,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        const dateString = now.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Draw time
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 48px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(timeString, canvas.width / 2, canvas.height / 2 - 20);
+        
+        // Draw date
+        ctx.font = 'bold 24px Arial, sans-serif';
+        ctx.fillText(dateString, canvas.width / 2, canvas.height / 2 + 40);
+        
+        // Draw "Current Time" label at top
+        ctx.font = 'bold 20px Arial, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#d4af37';
+        ctx.fillText('\"Time exists in order that everything doesn’t ', canvas.width / 12, 60);
+        ctx.fillText('happen all at once … and books exist so that', canvas.width / 12, 90);
+        ctx.fillText('it isn’t all forgotten.\"', canvas.width / 12, 120);
+        ctx.fillText('– Susan Sontag', canvas.width / 1.625, 150);
+        
+        // Update texture
+        clockTexture.needsUpdate = true;
+    }
+    
+    // Create texture from canvas
+    const clockTexture = new THREE.CanvasTexture(canvas);
+    clockTexture.minFilter = THREE.LinearFilter;
+    clockTexture.magFilter = THREE.LinearFilter;
+    clockTexture.generateMipmaps = false;
+    
+    // Create plane geometry for the clock
+    const clockGeometry = new THREE.PlaneGeometry(4, 4);
+    const clockMaterial = new THREE.MeshLambertMaterial({ 
+        map: clockTexture,
+        transparent: false
+    });
+    
+    const clockMesh = new THREE.Mesh(clockGeometry, clockMaterial);
+    clockMesh.position.set(0, 0, 0.05);
+    
+    // Mark as static
+    clockMesh.userData.isStaticText = true;
+    
+    clockGroup.add(clockMesh);
+    
+    // Position on right side of front wall, next to window
+    clockGroup.position.set(-26, 6, 29.9); // Right side of front wall
+    clockGroup.rotation.y = Math.PI; // Face inward
+    
+    // Mark group as static
+    clockGroup.userData.isStaticText = true;
+    
+    scene.add(clockGroup);
+    
+    // Update clock every second
+    updateClock(); // Initial update
+    setInterval(updateClock, 1000);
+}
+
+function createFrontWallWithWindow() {
+    const wallMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xf5f5dc,
+        roughness: 0.3,
+        metalness: 0.1
+    });
+
+    // Left wall section (4 units wide)
+    const leftWallGeometry = new THREE.PlaneGeometry(8, LIBRARY_HEIGHT);
+    const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+    leftWall.position.set(-26, LIBRARY_HEIGHT / 2, LIBRARY_DEPTH / 2);
+    leftWall.rotation.y = Math.PI;
+    leftWall.receiveShadow = true;
+    scene.add(leftWall);
+
+    // Right wall section (4 units wide)
+    const rightWallGeometry = new THREE.PlaneGeometry(8, LIBRARY_HEIGHT);
+    const rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
+    rightWall.position.set(26, LIBRARY_HEIGHT / 2, LIBRARY_DEPTH / 2);
+    rightWall.rotation.y = Math.PI;
+    rightWall.receiveShadow = true;
+    scene.add(rightWall);
+
+    // Window frame
+    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+    
+    // Horizontal frame pieces (top and bottom)
+    const topFrameGeometry = new THREE.BoxGeometry(54, 0.2, 0.3);
+    const topFrame = new THREE.Mesh(topFrameGeometry, frameMaterial);
+    topFrame.position.set(0, LIBRARY_HEIGHT, LIBRARY_DEPTH / 2);
+    scene.add(topFrame);
+    
+    const bottomFrameGeometry = new THREE.BoxGeometry(54, 0.2, 0.3);
+    const bottomFrame = new THREE.Mesh(bottomFrameGeometry, frameMaterial);
+    bottomFrame.position.set(0, 0, LIBRARY_DEPTH / 2);
+    scene.add(bottomFrame);
+
+    // Vertical frame pieces (left and right edges)
+    const leftFrameGeometry = new THREE.BoxGeometry(0.2, LIBRARY_HEIGHT + 0.2, 0.3);
+    const leftFrame = new THREE.Mesh(leftFrameGeometry, frameMaterial);
+    leftFrame.position.set(-22, LIBRARY_HEIGHT / 2, LIBRARY_DEPTH / 2);
+    scene.add(leftFrame);
+    
+    const rightFrameGeometry = new THREE.BoxGeometry(0.2, LIBRARY_HEIGHT + 0.2, 0.3);
+    const rightFrame = new THREE.Mesh(rightFrameGeometry, frameMaterial);
+    rightFrame.position.set(22, LIBRARY_HEIGHT / 2, LIBRARY_DEPTH / 2);
+    scene.add(rightFrame);
+}
 
         function createBookCover(book, x, y, z, parentGroup) {
             const bookGeometry = new THREE.BoxGeometry(BOOK_WIDTH, BOOK_HEIGHT, BOOK_THICKNESS);
@@ -5084,23 +5900,24 @@
             bookMesh.position.set(x, y, z);
             bookMesh.castShadow = true;
             bookMesh.userData = { book };
+            
             loader.load(book.customCoverUrl, (texture) => {
-                // Ensure the texture colors are preserved
                 texture.encoding = THREE.sRGBEncoding;
                 texture.flipY = true;
                 texture.wrapS = THREE.RepeatWrapping;
                 texture.wrapT = THREE.RepeatWrapping;
                 
                 const materials = [
-                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Right
-                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Left  
-                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Top
-                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }), // Bottom
-                    new THREE.MeshLambertMaterial({ map: texture }), // Front (book cover)
-                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 })  // Back
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }),
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }),
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }),
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 }),
+                    new THREE.MeshLambertMaterial({ map: texture }),
+                    new THREE.MeshLambertMaterial({ color: 0x5d4d37 })
                 ];
                 bookMesh.material = materials;
             }, undefined, () => createFallbackCover(bookMesh, book));
+            
             parentGroup.add(bookMesh);
             bookMeshes.push(bookMesh);
         }
@@ -5144,17 +5961,133 @@
             ctx.fillText(book.author, canvas.width / 2, canvas.height - 90);
             const texture = new THREE.CanvasTexture(canvas);
             const materials = [
-                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
-                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
-                new THREE.MeshBasicMaterial({ map: texture }), new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 }),
+                new THREE.MeshBasicMaterial({ map: texture }),
+                new THREE.MeshPhongMaterial({ color: 0x5d4d37 })
             ];
             bookMesh.material = materials;
         }
 
         // =============================================================================
-        // RENDER LOOP & UTILITIES
+        // INTERACTION FUNCTIONS
         // =============================================================================
-        const clock = new THREE.Clock();
+        function setupMouseInteraction() {
+            renderer.domElement.addEventListener('click', onMouseClick, false);
+        }
+
+        function onMouseClick(event) {
+            if (document.pointerLockElement === renderer.domElement) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(bookMeshes, true);
+
+            if (intersects.length > 0) {
+                const clickedBook = intersects[0].object.userData.book;
+                if (clickedBook) {
+                    showBookDetails(clickedBook);
+                }
+            }
+        }
+
+        function showBookDetails(book) {
+            document.getElementById('modalTitle').textContent = book.title;
+            document.getElementById('modalAuthor').textContent = book.author;
+            document.getElementById('modalCategory').textContent = book.category;
+            document.getElementById('modalStatus').textContent = book.status;
+            document.getElementById('modalOwnership').textContent = book.ownership;
+            document.getElementById('modalDate').textContent = book.dateCompleted || 'Not completed';
+            document.getElementById('modalSummary').textContent = book.summary;
+            document.getElementById('modalBookCover').src = book.customCoverUrl;
+            modal.style.display = 'block';
+        }
+
+        function setupVR() {
+            vrButton = document.getElementById('vrButton');
+            if (!vrButton) return;
+
+            if ('xr' in navigator) {
+                navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+                    if (supported) {
+                        vrButton.addEventListener('click', () => {
+                            if (isVREnabled) {
+                                renderer.xr.getSession().end();
+                            } else {
+                                navigator.xr.requestSession('immersive-vr', { requiredFeatures: ['local-floor'] })
+                                    .then((session) => {
+                                        renderer.xr.setSession(session);
+                                        isVREnabled = true;
+                                        vrButton.textContent = 'Exit VR';
+                                        session.addEventListener('end', () => {
+                                            isVREnabled = false;
+                                            vrButton.textContent = 'Enter VR';
+                                        });
+                                    }).catch((error) => console.error('VR session failed:', error));
+                            }
+                        });
+                    } else {
+                        vrButton.textContent = 'VR Not Supported';
+                        vrButton.disabled = true;
+                    }
+                }).catch((error) => {
+                    vrButton.textContent = 'VR Error';
+                    vrButton.disabled = true;
+                });
+            } else {
+                vrButton.textContent = 'VR Not Supported';
+                vrButton.disabled = true;
+            }
+        }
+
+        function setupNavigationTool() {
+            const navButtons = {
+                navUp: { action: 'moveVertical', value: 1 },
+                navDown: { action: 'moveVertical', value: -1 },
+                navLeft: { action: 'moveStrafe', value: -1 },
+                navRight: { action: 'moveStrafe', value: 1 },
+                navForward: { action: 'moveForward', value: -1 },
+                navBackward: { action: 'moveForward', value: 1 },
+                navRotateLeft: { action: 'lookHorizontal', value: -1 },
+                navRotateRight: { action: 'lookHorizontal', value: 1 }
+            };
+
+            Object.keys(navButtons).forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (!button) return;
+
+                const config = navButtons[buttonId];
+                let isPressed = false;
+
+                const startAction = (e) => {
+                    if (e) e.preventDefault();
+                    if (isPressed) return;
+                    isPressed = true;
+                    inputController.setButtonAction(config.action, config.value);
+                    button.classList.add('active');
+                };
+
+                const stopAction = (e) => {
+                    if (e) e.preventDefault();
+                    if (!isPressed) return;
+                    isPressed = false;
+                    inputController.setButtonAction(config.action, 0);
+                    button.classList.remove('active');
+                };
+
+                button.addEventListener('mousedown', startAction);
+                button.addEventListener('mouseup', stopAction);
+                button.addEventListener('mouseleave', stopAction);
+                button.addEventListener('touchstart', startAction, { passive: false });
+                button.addEventListener('touchend', stopAction, { passive: false });
+                button.addEventListener('touchcancel', stopAction, { passive: false });
+                button.addEventListener('contextmenu', (e) => e.preventDefault());
+            });
+        }
 
         function animate() {
             renderer.setAnimationLoop(() => {
@@ -5162,22 +6095,94 @@
 
                 inputController.update();
 
-                // Check for the reset action
                 if (inputController.actions.reset) {
                     playerController.resetView();
-                    inputController.actions.reset = false; // Reset the action so it only runs once
+                    inputController.actions.reset = false;
                 }
 
                 playerController.update(delta, inputController.actions);
-
+                animateWaterEffects();
                 renderer.render(scene, camera);
             });
         }
+
+        function animateWaterEffects() {
+    const time = Date.now() * 0.001;
+    
+    scene.traverse((child) => {
+        // Skip objects marked as static text
+        if (child.userData.isStaticText) {
+            return;
+        }
+        
+        if (child.isMesh && child.material && child.material.color && 
+            child.material.color.getHex() === 0x4169e1 && 
+            child.geometry && child.geometry.type === 'CylinderGeometry') {
+            child.position.y += Math.sin(time * 2 + child.position.x) * 0.02;
+        }
+        
+        if (child.isMesh && child.material && child.material.color &&
+            child.material.color.getHex() === 0xffffff && child.material.transparent) {
+            child.position.y += Math.sin(time * 3 + child.position.x * 10) * 0.01;
+            child.material.opacity = 0.2 + Math.sin(time * 4 + child.position.z * 5) * 0.1;
+        }
+    });
+}
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // =============================================================================
+        // INITIALIZATION
+        // =============================================================================
+        function init() {
+            modal = document.getElementById('bookModal');
+            closeBtn = document.querySelector('.close');
+
+            if (!modal || !closeBtn) {
+                console.error('Required DOM elements not found');
+                return;
+            }
+
+            closeBtn.onclick = () => { modal.style.display = 'none'; };
+            window.onclick = (event) => { if (event.target == modal) modal.style.display = 'none'; };
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3.5, 25);
+            camera.userData.initialPosition = camera.position.clone();
+            camera.userData.initialRotation = camera.rotation.clone();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.xr.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild(renderer.domElement);
+            
+            inputController = new InputController();
+            inputController.connect();
+            playerController = new PlayerController(camera, renderer.domElement);
+            
+            createLighting();
+            createMansionEnvironment();
+            createBookShelves();
+            createLuxuryFurniture();
+            createWaterFeatures();
+            setupMouseInteraction();
+            setupVR();
+
+            document.getElementById('bookCount').textContent = books.length;
+            setupNavigationTool();
+            window.addEventListener('resize', onWindowResize);
+            animate();
         }
 
         // =============================================================================
