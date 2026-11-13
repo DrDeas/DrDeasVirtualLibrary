@@ -1,0 +1,11 @@
+{
+  "name": "drdeas-virtual-library-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node sync-library.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.35.5"
+  }
+}
