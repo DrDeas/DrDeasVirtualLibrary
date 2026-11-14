@@ -150,7 +150,9 @@ export function buildArchitecture(scene, layout, mats, tex) {
     const u = b * BAY;
     const y0 = H(u) - 0.25;
     const hasRampAbove = u + TAU <= L.uEnd + pil;
-    const y1 = hasRampAbove ? H(u + TAU) - SLAB + 0.02 : H(u) + 3.55;
+    // On the last turn there is no ramp overhead to meet, so the pilasters stop just
+    // above the shelving and stay clear of the inscription that circles the wall.
+    const y1 = hasRampAbove ? H(u + TAU) - SLAB + 0.02 : H(u) + 3.3;
     axisMatrix(R_OUT - 0.17, u, (y0 + y1) / 2, m);
     pilasters.setMatrixAt(b, m.multiply(sc.makeScale(1, y1 - y0, 1)));
     const yl = H(u) + 2.45;

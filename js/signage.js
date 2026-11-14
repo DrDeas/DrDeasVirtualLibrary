@@ -225,7 +225,7 @@ export function buildSignage(scene, layout, mats, books) {
   const friezeTex = canvasTexture(bandInscription(fanon, 4096, 128, 76));
   friezeTex.wrapS = THREE.RepeatWrapping;
   friezeTex.repeat.x = 2;
-  const frieze = new Geo().ribbon(0, TAU, () => [R_OUT - 0.02, L.wallTop - 1.75], () => [R_OUT - 0.02, L.wallTop - 0.72], { unit: true });
+  const frieze = new Geo().ribbon(0, TAU, () => [R_OUT - 0.02, L.wallTop - 1.43], () => [R_OUT - 0.02, L.wallTop - 0.4], { unit: true });
   group.add(frieze.mesh(glowText(friezeTex, 1.7)));
 
   // ---- Inscription at the top of the ramp ----------------------------------
